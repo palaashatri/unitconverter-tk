@@ -5,8 +5,11 @@
 [![Lint [Flake8]](https://github.com/palaashatri/unitconverter-py/actions/workflows/flake8-lint.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/flake8-lint.yml)
 [![Unit Test [PyTest]](https://github.com/palaashatri/unitconverter-py/actions/workflows/unit-test.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/unit-test.yml)
 
+Now with native look-and-feel for each Windows & macOS!
+
 ### Screenshots
-<img width="643" alt="Screenshot 2024-09-01 at 4 13 34 PM" src="https://github.com/user-attachments/assets/6590c542-c032-4dc2-af08-3356d4efa5e9">
+<img width="1664" height="1328" alt="image" src="https://github.com/user-attachments/assets/44bf2f6b-1cfb-4a95-b481-8fa4840615ca" />
+
 
 
 ### Folder Structure
