@@ -8,9 +8,7 @@
 Now with native look-and-feel for each Windows & macOS!
 
 ### Screenshots
-<img width="1664" height="1328" alt="image" src="https://github.com/user-attachments/assets/44bf2f6b-1cfb-4a95-b481-8fa4840615ca" />
-
-
+<img width="2356" height="1488" alt="image" src="https://github.com/user-attachments/assets/e2be38df-286e-45f8-808f-b25aa5539a7a" />
 
 ### Folder Structure
 | Folder | Description |
