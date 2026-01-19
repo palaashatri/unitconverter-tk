@@ -1,78 +1,91 @@
-import sys
 import tkinter as tk
-from tkinter import *
-import urllib.request
-import webbrowser
-from functools import partial
-from tkinter import Tk, StringVar , ttk
+from tkinter import ttk
+
 from . import convert_temp
 
 
-def TemperatureConverter():
-    def convert():
-        celTemp = celTempVar.get()
-        fahTemp = fahTempVar.get()
-        kelTemp = kelTempVar.get()
+def TemperatureConverter(parent: tk.Widget, on_status=None) -> ttk.Frame:
+    frame = ttk.Frame(parent, padding=12)
+    frame.columnconfigure(1, weight=1)
 
-        if celTempVar.get() != 0.0:
-            fahTempVar.set(convert_temp.convert_celToFah(celTemp))
-            kelTempVar.set(convert_temp.covert_celToKel(celTemp))
+    cel_temp = tk.StringVar(value="")
+    fah_temp = tk.StringVar(value="")
+    kel_temp = tk.StringVar(value="")
 
-        elif fahTempVar.get() != 0.0:
-            celTempVar.set(convert_temp.convert_fahToCel(fahTemp))
-            kelTempVar.set(convert_temp.convert_fahToKel(fahTemp))
-        
-        elif kelTempVar.get() !=0.0:
-            celTempVar.set(convert_temp.convert_kelToCel(kelTemp))
-            fahTempVar.set(convert_temp.convert_kelTofah(kelTemp))
-            
+    def set_status(message: str) -> None:
+        if on_status:
+            on_status(message)
 
-    def reset():
-        top = Toplevel(padx=50, pady=50)
-        top.grid()
-        message = Label(top, text = "Reset Complete")
-        button = Button(top, text="OK", command=top.destroy)
+    def parse(value: str):
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            return float(value)
+        except ValueError:
+            return "invalid"
 
-        message.grid(row = 0, padx = 5, pady = 5)
-        button.grid(row = 1, ipadx = 10, ipady = 10, padx = 5, pady = 5)
+    def convert(event=None):
+        values = {
+            "c": parse(cel_temp.get()),
+            "f": parse(fah_temp.get()),
+            "k": parse(kel_temp.get()),
+        }
+        populated = [k for k, v in values.items() if v not in (None, "invalid")]
 
-        fahTempVar.set(int(0))
-        celTempVar.set(int(0))
-        kelTempVar.set(int(0))
-        
-    top = Toplevel()
-    top.title("Temperature Converter")
-  
-    celTempVar = IntVar()
-    celTempVar.set(int(0))
-    fahTempVar = IntVar()
-    fahTempVar.set(int(0))
-    kelTempVar = IntVar()
-    kelTempVar.set(int(0))
-    titleLabel = Label (top, text = "Temperature Converter", font = ("Arial", 12, "bold"), justify = CENTER).grid(column=1,row=1)
-   
+        if any(v == "invalid" for v in values.values() if v not in (None,)):
+            set_status("Enter a number in only one field")
+            return
 
-    celLabel = Label (top, text = "Celcius: ", font = ("Arial", 16), fg = "red")
-    celLabel.grid(row = 2, column = 1, pady = 10, sticky = NW)
+        if len(populated) != 1:
+            set_status("Fill exactly one field to convert")
+            return
 
-    fahLabel = Label (top, text = "Fahrenheit: ", font = ("Arial", 16), fg = "blue")
-    fahLabel.grid(row = 3, column = 1, pady = 10, sticky = NW)
-    
-    kelLabel = Label (top, text = "Kelvin: ", font = ("Arial", 16), fg = "black")
-    kelLabel.grid(row = 4, column = 1, pady = 10, sticky = NW)
+        key = populated[0]
+        amt = values[key]
 
-    celEntry = Entry (top, width = 10, bd = 5, textvariable = celTempVar)
-    celEntry.grid(row = 2, column = 1, pady = 10, sticky = NW, padx = 125 )
+        if key == "c":
+            fah_temp.set(str(round(convert_temp.convert_celToFah(amt), 4)))
+            kel_temp.set(str(round(convert_temp.covert_celToKel(amt), 4)))
+            set_status("Converted from Celsius")
+        elif key == "f":
+            cel_temp.set(str(round(convert_temp.convert_fahToCel(amt), 4)))
+            kel_temp.set(str(round(convert_temp.convert_fahToKel(amt), 4)))
+            set_status("Converted from Fahrenheit")
+        else:
+            cel_temp.set(str(round(convert_temp.convert_kelToCel(amt), 4)))
+            fah_temp.set(str(round(convert_temp.convert_kelTofah(amt), 4)))
+            set_status("Converted from Kelvin")
 
+    def reset(event=None):
+        cel_temp.set("")
+        fah_temp.set("")
+        kel_temp.set("")
+        cel_entry.focus()
+        set_status("Cleared values")
 
-    fahEntry = Entry (top, width = 10, bd = 5, textvariable = fahTempVar)
-    fahEntry.grid(row = 3, column = 1, pady = 10, sticky = NW, padx = 125 )
-    
-    kelEntry = Entry (top, width = 10, bd = 5, textvariable = kelTempVar)
-    kelEntry.grid(row = 4, column = 1, pady = 10, sticky = NW, padx = 125 )
+    ttk.Label(frame, text="Temperature Converter", style="Header.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 12))
 
-    convertButton =Button (top, text = "Convert", font = ("Arial", 8, "bold"), relief = RAISED, bd=5, justify = CENTER, highlightbackground = "red", overrelief = GROOVE, activebackground = "green", activeforeground="blue", command = convert)
-    convertButton.grid(row = 5, column = 1, ipady = 8, ipadx = 12, pady = 5, sticky = NW, padx = 55)
+    ttk.Label(frame, text="Celsius").grid(row=1, column=0, sticky="w", pady=4)
+    cel_entry = ttk.Entry(frame, textvariable=cel_temp)
+    cel_entry.grid(row=1, column=1, sticky="ew", pady=4)
 
-    resetButton = Button (top, text = "Reset", font = ("Arial", 8, "bold"), relief = RAISED, bd=5, justify = CENTER, highlightbackground = "red", overrelief = GROOVE, activebackground = "green", activeforeground="blue", command = reset)
-    resetButton.grid(row = 5, column = 2,ipady = 8, ipadx = 12, pady = 5, sticky = NW)
+    ttk.Label(frame, text="Fahrenheit").grid(row=2, column=0, sticky="w", pady=4)
+    fah_entry = ttk.Entry(frame, textvariable=fah_temp)
+    fah_entry.grid(row=2, column=1, sticky="ew", pady=4)
+
+    ttk.Label(frame, text="Kelvin").grid(row=3, column=0, sticky="w", pady=4)
+    kel_entry = ttk.Entry(frame, textvariable=kel_temp)
+    kel_entry.grid(row=3, column=1, sticky="ew", pady=4)
+
+    button_row = ttk.Frame(frame)
+    button_row.grid(row=4, column=0, columnspan=3, pady=(12, 0), sticky="w")
+    ttk.Button(button_row, text="Convert", command=convert).grid(row=0, column=0, padx=(0, 8))
+    ttk.Button(button_row, text="Reset", command=reset).grid(row=0, column=1)
+
+    cel_entry.bind("<Return>", convert)
+    fah_entry.bind("<Return>", convert)
+    kel_entry.bind("<Return>", convert)
+
+    cel_entry.focus()
+    return frame
