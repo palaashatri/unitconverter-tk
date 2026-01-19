@@ -1,19 +1,21 @@
 import tkinter as tk
 from tkinter import ttk
 
-from . import convert_weight
+from . import convert_energy
 from . import utils
 
 
-def WeightConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
+def EnergyConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
     ids = {
-        "Kilogram": "kg",
-        "Hectogram": "hg",
-        "Decagram": "dg",
-        "Gram": "g",
-        "Decigram": "deg",
-        "Centigram": "cg",
-        "Milligram": "mg",
+        "Joule": "j",
+        "Kilojoule": "kj",
+        "Calorie": "cal",
+        "Kilocalorie": "kcal",
+        "Watt-hour": "wh",
+        "Kilowatt-hour": "kwh",
+        "BTU": "btu",
+        "Foot-pound": "ftlb",
+        "Electronvolt": "ev",
     }
 
     frame = ttk.Frame(parent, padding=12)
@@ -61,7 +63,7 @@ def WeightConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
         try:
             frm = ids[in_unit.get()]
             to = ids[out_unit.get()]
-            result = convert_weight.convert(amt, frm, to)
+            result = convert_energy.convert(amt, frm, to)
             precision = state.precision if state else 6
             use_sci = state.use_scientific if state else False
             formatted = utils.format_number(result, precision, use_sci)
@@ -99,7 +101,7 @@ def WeightConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
         in_field.focus()
         set_status("Cleared values", "info")
 
-    ttk.Label(frame, text="Weight Converter", style="Header.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 12))
+    ttk.Label(frame, text="Energy Converter", style="Header.TLabel").grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 12))
 
     ttk.Label(frame, text="Input").grid(row=1, column=0, sticky="w", pady=4)
     in_field = ttk.Entry(frame, textvariable=in_amt)
