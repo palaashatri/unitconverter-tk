@@ -21,7 +21,7 @@ pyinstaller --onefile --name unitconverter app.py                      # what th
 | `src/<kind>.py` | The Tk frame for that converter (inputs, unit pickers, live conversion) |
 | `src/utils.py` | Shared UI helpers |
 | `test/test_pytest.py` | Tests (currently one assertion per module for 5 of 10 modules) |
-| `.github/workflows/` | pytest, flake8, coverage, auto-tag on push, cross-platform PyInstaller/py2app release |
+| `.github/workflows/` | pytest, flake8, coverage; cross-platform PyInstaller/py2app release (triggered by the *Auto Tag* workflow, which is currently disabled in GitHub) |
 
 ## Known issues (2026-10-20)
 
@@ -29,7 +29,7 @@ pyinstaller --onefile --name unitconverter app.py                      # what th
 - `mi` uses 1609.34 m; the exact international mile is 1609.344 m. Check other factors against exact definitions (NIST SP 811) when touching them.
 - `convert_temp.covert_celToKel` is misspelled (`covert`); the test calls the misspelled name.
 - Only 5 of 10 converters have tests; temperature tests compare floats with `==`.
-- Workflows use deprecated `actions/checkout@v2` / `actions/setup-python@v2` and Python 3.9 (end of life); README badges point at the old repository name `unitconverter-py`.
+- Workflows use deprecated `actions/checkout@v2` / `actions/setup-python@v2` and Python 3.9 (end of life); README badges pointed at the old repository name `unitconverter-py` (fixed 2026-10-20).
 
 ## Rules
 
@@ -40,4 +40,4 @@ pyinstaller --onefile --name unitconverter app.py                      # what th
 
 ## Git workflow
 
-Never push to `main` directly (pushes to `main` trigger auto-tagging and a release build). Branch, run `pytest` and the flake8 command, and open a PR.
+Branch, run `pytest` and the flake8 command, and open a PR unless the owner asks for a direct push. If the *Auto Tag* workflow is re-enabled, every push to `main` creates a new tag and a release build.

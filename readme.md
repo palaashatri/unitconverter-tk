@@ -1,11 +1,19 @@
 # Unit Converter in Python
 ## Badges
-[![Cross-Platform Release](https://github.com/palaashatri/unitconverter-py/actions/workflows/cross-platform-release.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/cross-platform-release.yml)
-[![Code Coverage [PyTest-Cov]](https://github.com/palaashatri/unitconverter-py/actions/workflows/code-coverage-term.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/code-coverage-term.yml)
-[![Lint [Flake8]](https://github.com/palaashatri/unitconverter-py/actions/workflows/flake8-lint.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/flake8-lint.yml)
-[![Unit Test [PyTest]](https://github.com/palaashatri/unitconverter-py/actions/workflows/unit-test.yml/badge.svg)](https://github.com/palaashatri/unitconverter-py/actions/workflows/unit-test.yml)
+[![Cross-Platform Release](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml)
+[![Code Coverage [PyTest-Cov]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/code-coverage-term.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/code-coverage-term.yml)
+[![Lint [Flake8]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/flake8-lint.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/flake8-lint.yml)
+[![Unit Test [PyTest]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/unit-test.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/unit-test.yml)
 
 Now with native look-and-feel for each Windows & macOS!
+
+### Roadmap
+In priority order — each is something a user would notice:
+1. **Type-to-convert box:** enter `10 km in mi` or `72 F to C` and get the answer without picking tabs and dropdowns.
+2. **Remember settings and recent conversions between runs:** precision, scientific notation and the Recent Conversions list are lost when the app closes.
+3. **More categories people look up often:** angle, data rate, fuel economy, cooking measures.
+4. **Exact factors everywhere**, checked against NIST definitions, with tests for every unit pair.
+5. **Installers without antivirus warnings:** signed Windows builds (the README already warns about Defender false positives on unsigned PyInstaller output) and a macOS app bundle.
 
 ### Screenshots
 <img width="2356" height="1488" alt="image" src="https://github.com/user-attachments/assets/e2be38df-286e-45f8-808f-b25aa5539a7a" />
