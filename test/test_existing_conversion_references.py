@@ -34,7 +34,7 @@ LINEAR_CONVERTERS = [
     }),
     (convert_digital, "byte", {
         "PB": 1e15, "TB": 1e12, "GB": 1e9, "MB": 1e6,
-        "kB": 1e3, "bit": 8, "byte": 1,
+        "kB": 1e3, "bit": 1 / 8, "byte": 1,
     }),
     (convert_energy, "j", {
         "j": 1, "kj": 1e3, "cal": 4.184, "kcal": 4184,
@@ -83,7 +83,9 @@ LINEAR_CONVERTERS = [
 def test_every_linear_unit_matches_its_reference(converter, base, expected):
     assert set(converter.factors) == set(expected)
     for unit, factor in expected.items():
-        assert converter.convert(1, unit, base) == pytest.approx(factor, rel=1e-12)
+        assert converter.convert(1, unit, base) == pytest.approx(
+            factor, rel=1e-12, abs=0
+        )
 
 
 @pytest.mark.parametrize(

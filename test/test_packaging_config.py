@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,12 +74,87 @@ def test_release_workflow_requires_signing_and_publishes_versioned_checksums():
         "build-macos, build-linux]"
     ) in release
     assert "SHA256SUMS" in release
-    assert 'git rev-parse "$TAG_NAME^{commit}"' in release
-    assert "Release tag does not point to the requested source commit." in release
+    assert 'bash scripts/validate_release_tag.sh "$TAG_NAME" "$SOURCE_SHA"' in release
     assert "signtool sign" in release
     assert "codesign --force --deep --options runtime" in release
     assert "xcrun notarytool submit" in release
     assert "APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a" in release
+
+
+def test_release_workflow_excludes_its_virtualenv_from_flake8():
+    release = (ROOT / ".github" / "workflows" / "cross-platform-release.yml").read_text(
+        encoding="utf-8"
+    )
+
+    lint_command = next(
+        line for line in release.splitlines() if "flake8 ." in line
+    )
+    assert "--extend-exclude=.venv-release" in lint_command
+
+
+def _git(repository, *args):
+    return subprocess.run(
+        ["git", *args],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _release_tag_validation(repository, tag, source_sha):
+    script = ROOT / "scripts" / "validate_release_tag.sh"
+    assert script.is_file(), "release tag validation script is missing"
+    return subprocess.run(
+        ["bash", str(script), tag, source_sha],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _initialize_git_repository(repository):
+    repository.mkdir()
+    _git(repository, "init", "--quiet")
+    _git(repository, "config", "user.name", "Unit Converter Tests")
+    _git(repository, "config", "user.email", "tests@example.invalid")
+    (repository / "tracked.txt").write_text("first commit\n", encoding="utf-8")
+    _git(repository, "add", "tracked.txt")
+    _git(repository, "commit", "--quiet", "-m", "first commit")
+    return _git(repository, "rev-parse", "HEAD")
+
+
+def test_release_tag_validation_accepts_lightweight_tag_for_requested_commit(tmp_path):
+    repository = tmp_path / "lightweight"
+    source_sha = _initialize_git_repository(repository)
+    _git(repository, "tag", "v1.2.3", source_sha)
+
+    result = _release_tag_validation(repository, "v1.2.3", source_sha)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_release_tag_validation_accepts_annotated_tag_for_requested_commit(tmp_path):
+    repository = tmp_path / "annotated"
+    source_sha = _initialize_git_repository(repository)
+    _git(repository, "tag", "--annotate", "v1.2.3", "--message", "release", source_sha)
+
+    result = _release_tag_validation(repository, "v1.2.3", source_sha)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_release_tag_validation_rejects_tag_for_a_different_commit(tmp_path):
+    repository = tmp_path / "mismatched"
+    source_sha = _initialize_git_repository(repository)
+    (repository / "tracked.txt").write_text("second commit\n", encoding="utf-8")
+    _git(repository, "commit", "--quiet", "-am", "second commit")
+    _git(repository, "tag", "v1.2.3")
+
+    result = _release_tag_validation(repository, "v1.2.3", source_sha)
+
+    assert result.returncode != 0
+    assert "does not point to the requested source commit" in result.stderr
 
 
 def test_appimage_builder_is_pinned_and_verified_before_execution():

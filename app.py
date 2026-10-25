@@ -177,9 +177,17 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
             status_style.set("Info.TLabel")
 
     settings_dirty = False
+    settings_write_after_id = None
+
+    def cancel_scheduled_settings_write():
+        nonlocal settings_write_after_id
+        if settings_write_after_id is not None:
+            root.after_cancel(settings_write_after_id)
+            settings_write_after_id = None
 
     def persist_settings(mark_dirty=True):
         nonlocal settings_dirty
+        cancel_scheduled_settings_write()
         if mark_dirty:
             settings_dirty = True
         try:
@@ -192,7 +200,18 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
             return False
         return True
 
-    state.on_change = lambda: persist_settings(mark_dirty=True)
+    def flush_scheduled_settings_write():
+        nonlocal settings_write_after_id
+        settings_write_after_id = None
+        persist_settings(mark_dirty=False)
+
+    def schedule_settings_write():
+        nonlocal settings_dirty, settings_write_after_id
+        settings_dirty = True
+        cancel_scheduled_settings_write()
+        settings_write_after_id = root.after(400, flush_scheduled_settings_write)
+
+    state.on_change = schedule_settings_write
 
     quick_frame = ttk.Frame(left_panel)
     quick_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
@@ -229,6 +248,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         state.add_history(
             f"{expression} = {formatted} {result.target_label}"
         )
+        persist_settings()
         if hasattr(state, "update_history_display"):
             state.update_history_display()
         return "break"

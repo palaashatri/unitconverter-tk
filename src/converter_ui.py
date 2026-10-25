@@ -6,6 +6,9 @@ from tkinter import ttk
 from . import utils
 
 
+HISTORY_IDLE_DELAY_MS = 500
+
+
 def build_converter_frame(parent, title, unit_labels, convert, on_status=None, state=None):
     """Build a consistent live-conversion frame for a linear unit category."""
     frame = ttk.Frame(parent, padding=12)
@@ -17,31 +20,62 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     target_unit = tk.StringVar(master=frame)
     labels = dict(unit_labels)
     converting = False
+    pending_history_after_id = None
+    pending_history_entry = None
 
     def set_status(message, style="info"):
         if on_status:
             on_status(message, style)
 
-    def update_history(raw, formatted, source, target):
+    def cancel_pending_history():
+        nonlocal pending_history_after_id, pending_history_entry
+        if pending_history_after_id is not None:
+            frame.after_cancel(pending_history_after_id)
+            pending_history_after_id = None
+        pending_history_entry = None
+
+    def commit_pending_history():
+        nonlocal pending_history_after_id, pending_history_entry
+        pending_history_after_id = None
+        entry = pending_history_entry
+        pending_history_entry = None
         if state is None or not hasattr(state, "add_history"):
             return
-        state.add_history(f"{raw} {source} = {formatted} {target}")
+        if not entry:
+            return
+        state.add_history(entry)
         if hasattr(state, "update_history_display"):
             state.update_history_display()
+
+    def update_history(raw, formatted, source, target, committed=False):
+        nonlocal pending_history_after_id, pending_history_entry
+        if state is None or not hasattr(state, "add_history"):
+            return
+        cancel_pending_history()
+        pending_history_entry = f"{raw} {source} = {formatted} {target}"
+        if committed:
+            commit_pending_history()
+        else:
+            pending_history_after_id = frame.after(
+                HISTORY_IDLE_DELAY_MS, commit_pending_history
+            )
 
     def callback(event=None):
         raw = input_value.get().strip()
         if not raw:
+            cancel_pending_history()
             output_value.set("")
             set_status("Enter a value to convert", "info")
             return
 
         amount = utils.parse_number(raw)
         if amount == "invalid":
+            cancel_pending_history()
             output_value.set("")
             set_status("Input must be a finite number", "error")
             return
         if not source_unit.get() or not target_unit.get():
+            cancel_pending_history()
             set_status("Pick both units", "info")
             return
 
@@ -51,13 +85,20 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
             scientific = state.use_scientific if state else False
             formatted = utils.format_number(result, precision, scientific)
         except (KeyError, OverflowError, ValueError) as error:
+            cancel_pending_history()
             output_value.set("")
             set_status(str(error), "error")
             return
 
         output_value.set(formatted)
         set_status(f"✓ Converted {source_unit.get()} to {target_unit.get()}", "success")
-        update_history(raw, formatted, source_unit.get(), target_unit.get())
+        update_history(
+            raw,
+            formatted,
+            source_unit.get(),
+            target_unit.get(),
+            committed=event is not None,
+        )
 
     def auto_convert(*_):
         nonlocal converting
@@ -70,6 +111,7 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
             converting = False
 
     def reset():
+        cancel_pending_history()
         input_value.set("")
         output_value.set("")
         source_unit.set("")
@@ -109,5 +151,11 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     input_field.bind("<Return>", callback)
     from_combo.bind("<Return>", callback)
     to_combo.bind("<Return>", callback)
+
+    def cleanup_history_timer(event):
+        if event.widget is frame:
+            cancel_pending_history()
+
+    frame.bind("<Destroy>", cleanup_history_timer, add="+")
     input_field.focus_set()
     return frame
