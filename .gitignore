@@ -1,7 +1,26 @@
-__pycache__
-build
-dist
-app.spec
-.pytest_cache
-htmlcov
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Test and coverage output
 .coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Native packaging output
+build/
+dist/
+AppDir/
+*.spec
+*.app/
+*.dmg
+*.egg-info/
+*.AppImage
+appimagetool-x86_64.AppImage
+
+# macOS metadata
+.DS_Store
