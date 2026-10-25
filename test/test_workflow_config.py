@@ -29,3 +29,14 @@ def test_coverage_workflow_is_not_duplicated_or_malformed():
         "code-coverage-term.yml",
         "code-coverage-html.yml",
     } & names
+
+
+def test_auto_tag_uses_github_token_and_calls_the_release_workflow():
+    auto_tag = (WORKFLOWS / "auto-tag.yaml").read_text(encoding="utf-8")
+    release = (WORKFLOWS / "cross-platform-release.yml").read_text(encoding="utf-8")
+
+    assert "GH_PAT" not in auto_tag
+    assert "contents: write" in auto_tag
+    assert "uses: ./.github/workflows/cross-platform-release.yml" in auto_tag
+    assert "workflow_call:" in release
+    assert "workflow_run:" not in release
