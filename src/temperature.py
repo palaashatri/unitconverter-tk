@@ -80,7 +80,7 @@ def TemperatureConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.F
         try:
             if key == "c":
                 f_val = convert_temp.convert_celToFah(amt)
-                k_val = convert_temp.covert_celToKel(amt)
+                k_val = convert_temp.convert_celToKel(amt)
                 fah_temp.set(utils.format_number(f_val, precision, use_sci))
                 kel_temp.set(utils.format_number(k_val, precision, use_sci))
                 set_status("✓ Converted from Celsius", "success")

@@ -1,18 +1,18 @@
+from .conversion_utils import convert_by_factors
+
 factors = {
-    'ml': 1,
-    'l': 1000,
-    'cup': 236.588,
-    'pint': 473.176,
-    'quart': 946.353,
-    'gal': 3785.41,
-    'floz': 29.5735,
-    'm3': 1000000,
-    'cm3': 1,
-    'in3': 16.3871,
-    'ft3': 28316.8
+    "ml": 1,
+    "l": 1000,
+    "cup": 236.5882365,
+    "pint": 473.176473,
+    "quart": 946.352946,
+    "gal": 3785.411784,
+    "floz": 29.5735295625,
+    "m3": 1_000_000,
+    "cm3": 1,
+    "in3": 16.387064,
+    "ft3": 28_316.846592,
 }
 
 def convert(amt, frm, to):
-    if frm != 'ml':
-        amt = amt * factors[frm]
-    return amt / factors[to]
+    return convert_by_factors(amt, frm, to, factors)

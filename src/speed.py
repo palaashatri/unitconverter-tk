@@ -4,16 +4,18 @@ from tkinter import ttk
 from . import convert_speed
 from . import utils
 
+UNIT_LABELS = {
+    "Meters/sec": "mps",
+    "Kilometers/hr": "kph",
+    "Miles/hr": "mph",
+    "Feet/sec": "fps",
+    "Knots": "knot",
+    "Mach (dry air at 20 °C)": "mach",
+}
+
 
 def SpeedConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Meters/sec": "mps",
-        "Kilometers/hr": "kph",
-        "Miles/hr": "mph",
-        "Feet/sec": "fps",
-        "Knots": "knot",
-        "Mach": "mach",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)

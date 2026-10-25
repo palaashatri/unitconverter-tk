@@ -4,19 +4,21 @@ from tkinter import ttk
 from . import convert_energy
 from . import utils
 
+UNIT_LABELS = {
+    "Joule": "j",
+    "Kilojoule": "kj",
+    "Calorie (thermochemical)": "cal",
+    "Kilocalorie (thermochemical)": "kcal",
+    "Watt-hour": "wh",
+    "Kilowatt-hour": "kwh",
+    "BTU (IT)": "btu",
+    "Foot-pound force": "ftlb",
+    "Electronvolt": "ev",
+}
+
 
 def EnergyConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Joule": "j",
-        "Kilojoule": "kj",
-        "Calorie": "cal",
-        "Kilocalorie": "kcal",
-        "Watt-hour": "wh",
-        "Kilowatt-hour": "kwh",
-        "BTU": "btu",
-        "Foot-pound": "ftlb",
-        "Electronvolt": "ev",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)

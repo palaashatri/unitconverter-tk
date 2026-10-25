@@ -4,19 +4,21 @@ from tkinter import ttk
 from . import convert_time
 from . import utils
 
+UNIT_LABELS = {
+    "Microsecond": "us",
+    "Millisecond": "ms",
+    "Second": "sec",
+    "Minute": "min",
+    "Hour": "hr",
+    "Day": "day",
+    "Week": "week",
+    "Average Gregorian month": "month",
+    "Average Gregorian year": "year",
+}
+
 
 def TimeConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Microsecond": "us",
-        "Millisecond": "ms",
-        "Second": "sec",
-        "Minute": "min",
-        "Hour": "hr",
-        "Day": "day",
-        "Week": "week",
-        "Month": "month",
-        "Year": "year",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)

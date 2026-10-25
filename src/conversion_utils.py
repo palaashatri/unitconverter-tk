@@ -1,6 +1,7 @@
 """Shared validation for pure unit conversion functions."""
 
 import math
+from collections.abc import Mapping
 
 
 def require_finite(amt: float) -> float:
@@ -12,3 +13,14 @@ def require_finite(amt: float) -> float:
     if not math.isfinite(amount):
         raise ValueError("amount must be a finite number")
     return amount
+
+
+def convert_by_factors(
+    amt: float, frm: str, to: str, factors: Mapping[str, float]
+) -> float:
+    """Convert through a shared base unit using a category's factors."""
+    amount = require_finite(amt)
+    try:
+        return amount * factors[frm] / factors[to]
+    except KeyError as error:
+        raise ValueError(f"unknown unit: {error.args[0]}") from error
