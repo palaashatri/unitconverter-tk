@@ -13,6 +13,11 @@ def test_registry_resolves_common_aliases_without_case_sensitivity():
     assert resolve_unit("KiB/s").code == "KiB/s"
 
 
+def test_registry_reports_case_sensitive_bit_and_byte_symbol_as_ambiguous():
+    with pytest.raises(ValueError, match="ambiguous"):
+        resolve_unit("b")
+
+
 def test_registry_contains_every_conversion_category():
     categories = {unit.category for units in UNIT_REGISTRY.values() for unit in units}
     assert categories == {

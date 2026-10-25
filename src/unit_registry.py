@@ -42,7 +42,10 @@ _definitions = [
     ("area", "sqbarn", "Barns", ("sqbarn", "barn", "barns", "square barn")),
     ("area", "sqhectare", "Hectares", ("sqhectare", "hectare", "hectares", "square hectare")),
     ("area", "sqhomestead", "Homesteads", ("sqhomestead", "homestead", "homesteads", "square homestead")),
-    ("digital", "bit", "Bits", ("bit", "bits")),
+    # The lower/upper-case one-letter symbols b and B cannot both be resolved
+    # under this app's case-insensitive syntax, so that shorthand is flagged
+    # as ambiguous and users can spell out "bit" or "byte" instead.
+    ("digital", "bit", "Bits", ("b", "bit", "bits")),
     ("digital", "byte", "Bytes", ("byte", "bytes", "B")),
     ("digital", "kB", "Kilobytes", ("kb", "kilobyte", "kilobytes")),
     ("digital", "MB", "Megabytes", ("mb", "megabyte", "megabytes")),

@@ -53,3 +53,8 @@ def test_quick_conversion_rejects_below_absolute_zero():
 def test_quick_conversion_rejects_non_finite_result():
     with pytest.raises(ValueError, match="positive finite"):
         convert_expression("0 mpg to km/L")
+
+
+def test_quick_conversion_reports_case_collapsed_bit_byte_symbol_as_ambiguous():
+    with pytest.raises(ValueError, match="ambiguous unit"):
+        convert_expression("1 b to byte/s")

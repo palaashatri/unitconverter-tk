@@ -17,7 +17,9 @@ from src import (
     time_converter,
     pressure,
     energy,
+    quick_convert,
 )
+from src import utils
 
 
 class AppState:
@@ -120,7 +122,7 @@ def build_main_window() -> tk.Tk:
     left_panel = ttk.Frame(main_container, padding=16)
     left_panel.grid(row=0, column=0, sticky="nsew")
     left_panel.columnconfigure(0, weight=1)
-    left_panel.rowconfigure(1, weight=1)
+    left_panel.rowconfigure(2, weight=1)
     
     # Right: history & settings panel
     right_panel = ttk.Frame(main_container, padding=16, width=250)
@@ -176,8 +178,60 @@ def build_main_window() -> tk.Tk:
         else:
             status_style.set("Info.TLabel")
 
+    quick_frame = ttk.Frame(left_panel)
+    quick_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+    quick_frame.columnconfigure(1, weight=1)
+    ttk.Label(quick_frame, text="Type to convert:").grid(
+        row=0, column=0, sticky="w", padx=(0, 8)
+    )
+    quick_expression = tk.StringVar(master=root)
+    quick_entry = ttk.Entry(
+        quick_frame, textvariable=quick_expression, name="quick_convert_entry"
+    )
+    quick_entry.grid(row=0, column=1, sticky="ew")
+    quick_result = tk.StringVar(master=root, value="Example: 10 km in mi")
+    quick_result_label = ttk.Label(
+        quick_frame, textvariable=quick_result, name="quick_convert_result"
+    )
+    quick_result_label.grid(row=1, column=1, sticky="w", pady=(3, 0))
+
+    def convert_quick(event=None):
+        expression = quick_expression.get().strip()
+        try:
+            result = quick_convert.convert_expression(expression)
+            precision = state.precision
+            formatted = utils.format_number(
+                result.value, precision, state.use_scientific
+            )
+        except (OverflowError, ValueError) as error:
+            quick_result.set(str(error))
+            update_status(str(error), "error")
+            return "break"
+
+        quick_result.set(f"{formatted} {result.target_label}")
+        update_status("✓ Quick conversion complete", "success")
+        state.add_history(
+            f"{expression} = {formatted} {result.target_label}"
+        )
+        if hasattr(state, "update_history_display"):
+            state.update_history_display()
+        return "break"
+
+    ttk.Button(
+        quick_frame,
+        text="Convert",
+        name="quick_convert_button",
+        command=convert_quick,
+    ).grid(row=0, column=2, padx=(8, 0))
+    quick_entry.bind("<Return>", convert_quick)
+    ttk.Label(
+        quick_frame,
+        text="Examples: 10 km in mi  ·  72 F to C",
+        style="Subheader.TLabel",
+    ).grid(row=2, column=1, sticky="w", pady=(2, 0))
+
     notebook = ttk.Notebook(left_panel)
-    notebook.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+    notebook.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
 
     # Create all converter tabs with state reference
     converters = [
@@ -201,7 +255,7 @@ def build_main_window() -> tk.Tk:
         notebook.add(frame, text=text)
 
     status_bar = ttk.Label(left_panel, textvariable=status_var, anchor="w")
-    status_bar.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+    status_bar.grid(row=3, column=0, sticky="ew", pady=(10, 0))
     status_bar.configure(style=status_style.get())
     
     # Update status bar style when it changes

@@ -32,6 +32,10 @@ def _notebook(root):
     return next(widget for widget in _walk(root) if isinstance(widget, ttk.Notebook))
 
 
+def _named_widget(root, name):
+    return next(widget for widget in _walk(root) if widget.winfo_name() == name)
+
+
 def _drive_converter(root, frame, from_label, to_label, amount):
     combos = [w for w in _walk(frame) if isinstance(w, ttk.Combobox)]
     entries = [
@@ -82,6 +86,61 @@ def test_new_converter_tabs_convert_representative_values(
     assert float(result) == pytest.approx(expected)
     assert statuses[-1][1] == "success"
     assert errors == []
+
+
+@pytest.mark.parametrize(
+    ("expression", "action", "expected"),
+    [
+        ("10 km in mi", "return", "6.213712"),
+        ("72 F to C", "button", "22.222222"),
+    ],
+)
+def test_quick_convert_displays_result_and_records_once(tk_root, expression, action, expected):
+    _, errors = tk_root
+    app = build_main_window()
+    app.deiconify()
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        entry = _named_widget(app, "quick_convert_entry")
+        entry.insert(0, expression)
+        if action == "return":
+            entry.focus_force()
+            app.update()
+            entry.event_generate("<Return>")
+        else:
+            _named_widget(app, "quick_convert_button").invoke()
+        app.update()
+
+        result = _named_widget(app, "quick_convert_result").cget("text")
+        history = next(w for w in _walk(app) if isinstance(w, tk.Text))
+        assert expected in result
+        assert history.get("1.0", "end").count(expression) == 1
+        assert errors == []
+    finally:
+        app.destroy()
+
+
+@pytest.mark.parametrize(
+    ("expression", "message"),
+    [("1 furlong to mi", "unknown unit"), ("1 b to byte/s", "ambiguous unit")],
+)
+def test_quick_convert_shows_actionable_errors_without_callback_exceptions(
+    tk_root, expression, message
+):
+    _, errors = tk_root
+    app = build_main_window()
+    app.withdraw()
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        entry = _named_widget(app, "quick_convert_entry")
+        entry.insert(0, expression)
+        _named_widget(app, "quick_convert_button").invoke()
+        app.update()
+        result = _named_widget(app, "quick_convert_result").cget("text")
+        assert message in result.lower()
+        assert errors == []
+    finally:
+        app.destroy()
 
 
 @pytest.mark.parametrize("invalid", ["", "not a number", "nan", "inf", "-inf"])
