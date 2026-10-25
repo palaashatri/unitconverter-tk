@@ -66,9 +66,11 @@ jobs:
             echo "Release tag does not point to the requested source commit." >&2
             exit 1
           fi
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag_name=$TAG_NAME"
+            echo "version=$version"
+            echo "source_sha=$SOURCE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
   validate-release-secrets:
     name: Check signing credentials
@@ -323,7 +325,7 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts
-          cat *.sha256 > SHA256SUMS
+          cat ./*.sha256 > SHA256SUMS
           sha256sum --check SHA256SUMS
       - name: Publish versioned artifacts after every platform succeeds
         uses: softprops/action-gh-release@v2
