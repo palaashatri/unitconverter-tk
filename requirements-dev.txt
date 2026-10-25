@@ -1,0 +1,4 @@
+# Tools for local checks and CI; the application itself has no pip dependencies.
+pytest==9.1.1
+pytest-cov==7.1.0
+flake8==7.4.1

@@ -1,40 +1,52 @@
-name: Auto Tag
+name: Auto Tag and Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-tag-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  auto-tag:
+  create-tag:
+    name: Tag this main commit
     runs-on: ubuntu-latest
-
+    outputs:
+      tag_name: ${{ steps.tag.outputs.tag_name }}
+      source_sha: ${{ steps.tag.outputs.source_sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Important for getting all tags
-
-      - name: Set up Git
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Create or reuse this commit's version tag
+        id: tag
+        shell: bash
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-      - name: Get latest tag
-        id: get_tag
-        run: |
-          latest_tag=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
-          echo "Latest tag: $latest_tag"
-
-          if [ -z "$latest_tag" ]; then
-            echo "tag=v0.0.1" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          source_sha="$GITHUB_SHA"
+          existing_tag="$(git tag --points-at "$source_sha" | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | head -n 1 || true)"
+          if [[ -n "$existing_tag" ]]; then
+            tag_name="$existing_tag"
           else
-            IFS='.' read -r major minor patch <<<"${latest_tag#v}"
-            patch=$((patch + 1))
-            echo "tag=v$major.$minor.$patch" >> $GITHUB_OUTPUT
+            tag_name="$(python scripts/next_version.py)"
+            git tag "$tag_name" "$source_sha"
+            git push origin "$tag_name"
           fi
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Create new tag and push
-        run: |
-          git tag ${{ steps.get_tag.outputs.tag }}
-          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }} ${{ steps.get_tag.outputs.tag }}
+  release:
+    name: Build and publish ${{ needs.create-tag.outputs.tag_name }}
+    needs: create-tag
+    uses: ./.github/workflows/cross-platform-release.yml
+    with:
+      tag_name: ${{ needs.create-tag.outputs.tag_name }}
+      source_sha: ${{ needs.create-tag.outputs.source_sha }}
+    secrets: inherit

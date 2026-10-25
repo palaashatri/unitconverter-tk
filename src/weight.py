@@ -4,25 +4,27 @@ from tkinter import ttk
 from . import convert_weight
 from . import utils
 
+UNIT_LABELS = {
+    "Kilogram": "kg",
+    "Hectogram": "hg",
+    "Decagram": "dag",
+    "Gram": "g",
+    "Decigram": "dg",
+    "Centigram": "cg",
+    "Milligram": "mg",
+}
+
 
 def WeightConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Kilogram": "kg",
-        "Hectogram": "hg",
-        "Decagram": "dg",
-        "Gram": "g",
-        "Decigram": "deg",
-        "Centigram": "cg",
-        "Milligram": "mg",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)
 
-    in_amt = tk.StringVar(value="")
-    out_amt = tk.StringVar(value="")
-    in_unit = tk.StringVar(value="")
-    out_unit = tk.StringVar(value="")
+    in_amt = tk.StringVar(master=frame, value="")
+    out_amt = tk.StringVar(master=frame, value="")
+    in_unit = tk.StringVar(master=frame, value="")
+    out_unit = tk.StringVar(master=frame, value="")
     
     converting = False
 

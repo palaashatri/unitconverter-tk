@@ -4,34 +4,36 @@ from tkinter import ttk
 from . import convert_area
 from . import utils
 
+UNIT_LABELS = {
+    "Square meter": "sqm",
+    "Square km": "sqkm",
+    "Square rood": "sqr",
+    "Square cm": "sqcm",
+    "Square foot": "sqf",
+    "Square inch": "sqin",
+    "Square mile": "sqmile",
+    "Square millimeter": "sqmm",
+    "Square rod": "sqrod",
+    "Square yard": "sqyard",
+    "Square township": "sqtownship",
+    "Square acre": "sqacre",
+    "Square are": "sqare",
+    "Square barn": "sqbarn",
+    "Square hectare": "sqhectare",
+    "Square homestead": "sqhomestead",
+}
+
 
 def AreaConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Square meter": "sqm",
-        "Square km": "sqkm",
-        "Square rood": "sqr",
-        "Square cm": "sqcm",
-        "Square foot": "sqf",
-        "Square inch": "sqin",
-        "Square mile": "sqmile",
-        "Square millimeter": "mm",
-        "Square rod": "sqrod",
-        "Square yard": "sqyard",
-        "Square township": "sqtownship",
-        "Square acre": "sqacre",
-        "Square are": "sqare",
-        "Square barn": "sqbarn",
-        "Square hectare": "sqhectare",
-        "Square homestead": "sqhomestead",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)
 
-    in_amt = tk.StringVar(value="")
-    out_amt = tk.StringVar(value="")
-    in_unit = tk.StringVar(value="")
-    out_unit = tk.StringVar(value="")
+    in_amt = tk.StringVar(master=frame, value="")
+    out_amt = tk.StringVar(master=frame, value="")
+    in_unit = tk.StringVar(master=frame, value="")
+    out_unit = tk.StringVar(master=frame, value="")
     
     converting = False
 

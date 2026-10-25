@@ -4,29 +4,31 @@ from tkinter import ttk
 from . import convert_volume
 from . import utils
 
+UNIT_LABELS = {
+    "Milliliter": "ml",
+    "Liter": "l",
+    "US cup": "cup",
+    "US pint": "pint",
+    "US quart": "quart",
+    "US gallon": "gal",
+    "US fluid ounce": "floz",
+    "Cubic meter": "m3",
+    "Cubic centimeter": "cm3",
+    "Cubic inch": "in3",
+    "Cubic foot": "ft3",
+}
+
 
 def VolumeConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
-    ids = {
-        "Milliliter": "ml",
-        "Liter": "l",
-        "Cup": "cup",
-        "Pint": "pint",
-        "Quart": "quart",
-        "Gallon": "gal",
-        "Fluid Ounce": "floz",
-        "Cubic Meter": "m3",
-        "Cubic Centimeter": "cm3",
-        "Cubic Inch": "in3",
-        "Cubic Foot": "ft3",
-    }
+    ids = UNIT_LABELS
 
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)
 
-    in_amt = tk.StringVar(value="")
-    out_amt = tk.StringVar(value="")
-    in_unit = tk.StringVar(value="")
-    out_unit = tk.StringVar(value="")
+    in_amt = tk.StringVar(master=frame, value="")
+    out_amt = tk.StringVar(master=frame, value="")
+    in_unit = tk.StringVar(master=frame, value="")
+    out_unit = tk.StringVar(master=frame, value="")
     
     converting = False
 

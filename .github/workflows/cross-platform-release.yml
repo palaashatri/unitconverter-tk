@@ -1,130 +1,338 @@
 name: Cross-Platform Release
 
 on:
-  push:
-    tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
-  workflow_run:
-    workflows:
-      - "Auto Tag"
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      tag_name:
+        description: Stable version tag to build and publish
+        required: true
+        type: string
+      source_sha:
+        description: Exact source commit to build
+        required: true
+        type: string
+    secrets:
+      WINDOWS_SIGNING_CERTIFICATE:
+        required: false
+      WINDOWS_SIGNING_PASSWORD:
+        required: false
+      APPLE_CERTIFICATE:
+        required: false
+      APPLE_CERTIFICATE_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_APP_SPECIFIC_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  release-metadata:
+    name: Validate release tag and source
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.metadata.outputs.tag_name }}
+      version: ${{ steps.metadata.outputs.version }}
+      source_sha: ${{ steps.metadata.outputs.source_sha }}
+    env:
+      TAG_NAME: ${{ inputs.tag_name }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Install pyinstaller and build tools
+          fetch-depth: 0
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Validate version and commit inputs
+        id: metadata
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyinstaller
-          pip install setuptools wheel
+          set -euo pipefail
+          if [[ ! "$TAG_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Release tag must be a stable vMAJOR.MINOR.PATCH tag." >&2
+            exit 1
+          fi
+          version="${TAG_NAME#v}"
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Release source must be a full 40-character commit SHA." >&2
+            exit 1
+          fi
+          tag_sha="$(git rev-parse "$TAG_NAME^{commit}")"
+          if [[ "$tag_sha" != "$SOURCE_SHA" ]]; then
+            echo "Release tag does not point to the requested source commit." >&2
+            exit 1
+          fi
+          {
+            echo "tag_name=$TAG_NAME"
+            echo "version=$version"
+            echo "source_sha=$SOURCE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Build Windows .exe
-        run: |
-          pyinstaller --onefile --name unitconverter app.py
-
-      - name: Upload .exe to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: dist/unitconverter.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install py2app
-        run: |
-          python -m pip install py2app
-
-      - name: Create setup.py
-        run: |
-          echo "from setuptools import setup" > setup.py
-          echo "APP = ['app.py']" >> setup.py
-          echo "OPTIONS = {'argv_emulation': True}" >> setup.py
-          echo "setup(app=APP, options={'py2app': OPTIONS}, setup_requires=['py2app'])" >> setup.py
-          cat setup.py  # Debug: Output setup.py content
-          ls -la  # List directory to confirm setup.py is there
-
-      - name: Build macOS .app
-        run: python setup.py py2app
-
-      - name: Zip .app bundle
-        run: |
-          cd dist
-          zip -r unitconverter-mac.zip *.app
-
-      - name: Upload .app to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: dist/unitconverter-mac.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-linux:
+  validate-release-secrets:
+    name: Check signing credentials
+    needs: release-metadata
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
+      - name: Fail with missing secret names
+        env:
+          WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
+          WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/check_release_secrets.sh
 
+  validate:
+    name: Tests, lint, and workflow validation
+    needs: [release-metadata, validate-release-secrets]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
+      - name: Install Tk and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes python3.12-venv python3.12-tk xvfb
+      - name: Create Python 3.12 test environment
+        run: python3.12 -m venv .venv-release
+      - name: Install development dependencies
+        run: .venv-release/bin/python -m pip install -r requirements-dev.txt
+      - name: Run tests under Xvfb
+        run: xvfb-run -a .venv-release/bin/pytest --cov=. --cov-report=term --cov-report=xml
+      - name: Run required fatal Flake8 checks
+        run: .venv-release/bin/flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Install pinned actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Validate all workflows
+        run: actionlint .github/workflows/*.yml .github/workflows/*.yaml
+
+  build-windows:
+    name: Build and sign Windows executable
+    needs: [release-metadata, validate, validate-release-secrets]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.release-metadata.outputs.version }}
+      SOURCE_SHA: ${{ needs.release-metadata.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Install tkinter
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - name: Install pinned packaging tools
+        run: python -m pip install -r requirements-build.txt
+      - name: Build executable
+        run: python -m PyInstaller --clean --onefile --name unitconverter app.py
+      - name: Smoke-test frozen executable
+        run: ./dist/unitconverter.exe --smoke-test
+      - name: Sign and timestamp executable
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
+          WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
         run: |
-          sudo apt-get install python3-tk
+          $certificatePath = Join-Path $env:RUNNER_TEMP "publisher.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE))
+          $executable = "dist/unitconverter-$env:VERSION-windows.exe"
+          Move-Item "dist/unitconverter.exe" $executable
+          $signtool = (Get-Command signtool.exe -ErrorAction Stop).Source
+          & $signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $certificatePath /p $env:WINDOWS_SIGNING_PASSWORD $executable
+          if ($LASTEXITCODE -ne 0) { throw "Windows code signing failed." }
+          & $signtool verify /pa /all $executable
+          if ($LASTEXITCODE -ne 0) { throw "Windows signature verification failed." }
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $executable).Hash.ToLowerInvariant()
+          $checksum = "$hash  $(Split-Path -Leaf $executable)`n"
+          [IO.File]::WriteAllText("$executable.sha256", $checksum, [Text.Encoding]::ASCII)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dist
+          path: |
+            dist/unitconverter-${{ needs.release-metadata.outputs.version }}-windows.exe
+            dist/unitconverter-${{ needs.release-metadata.outputs.version }}-windows.exe.sha256
+          if-no-files-found: error
 
-      - name: Install PyInstaller
-        run: python -m pip install pyinstaller
-
-      - name: Build binary
+  build-macos:
+    name: Build, sign, and notarize macOS app
+    needs: [release-metadata, validate, validate-release-secrets]
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.release-metadata.outputs.version }}
+      UNITCONVERTER_VERSION: ${{ needs.release-metadata.outputs.version }}
+      SOURCE_SHA: ${{ needs.release-metadata.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - name: Install pinned packaging tools
+        run: python -m pip install -r requirements-build.txt
+      - name: Build application bundle
+        run: python setup-macos.py py2app
+      - name: Smoke-test frozen application
+        run: dist/UnitConverter.app/Contents/MacOS/UnitConverter --smoke-test
+      - name: Sign, notarize, and staple application
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          pyinstaller --onefile --name unitconverter app.py
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
+          keychain_path="$RUNNER_TEMP/unitconverter-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -k "$keychain_path" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | sed -nE 's/.*"([^"]*Developer ID Application[^"]*)".*/\1/p' | head -n 1)"
+          if [[ -z "$identity" ]]; then
+            echo "The configured Apple certificate has no Developer ID Application identity." >&2
+            exit 1
+          fi
+          codesign --force --deep --options runtime --timestamp --sign "$identity" dist/UnitConverter.app
+          codesign --verify --deep --strict --verbose=2 dist/UnitConverter.app
+          temporary_zip="$RUNNER_TEMP/UnitConverter-notarization.zip"
+          ditto -c -k --sequesterRsrc --keepParent dist/UnitConverter.app "$temporary_zip"
+          xcrun notarytool submit "$temporary_zip" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple dist/UnitConverter.app
+          codesign --verify --deep --strict --verbose=2 dist/UnitConverter.app
+          artifact="unitconverter-$VERSION-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent dist/UnitConverter.app "dist/$artifact"
+          (cd dist && shasum -a 256 "$artifact" > "$artifact.sha256")
+          security delete-keychain "$keychain_path"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dist
+          path: |
+            dist/unitconverter-${{ needs.release-metadata.outputs.version }}-macos.zip
+            dist/unitconverter-${{ needs.release-metadata.outputs.version }}-macos.zip.sha256
+          if-no-files-found: error
 
-      - name: Debug- List dist folder
-        run: ls -la dist/
-
-      - name: Create Desktop Entry for AppImage
+  build-linux:
+    name: Build and smoke-test Linux AppImage
+    needs: [release-metadata, validate, validate-release-secrets]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.release-metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
+      - name: Install Tk, Xvfb, and AppImage runtime support
         run: |
-          mkdir -p AppDir/usr/share/applications
-          echo "[Desktop Entry]
-          Type=Application
-          Name=UnitConverter
-          Exec=unitconverter
-          Icon=unitconverter
-          Categories=Utility;" > AppDir/usr/share/applications/unitconverter.desktop
-
+          sudo apt-get update
+          sudo apt-get install --yes python3.12-venv python3.12-tk xvfb file
+      - name: Create Python 3.12 build environment
+        run: python3.12 -m venv .venv-build
+      - name: Install pinned packaging tools
+        run: .venv-build/bin/python -m pip install -r requirements-build.txt
+      - name: Build executable
+        run: .venv-build/bin/python -m PyInstaller --clean --onefile --name unitconverter app.py
+      - name: Smoke-test frozen executable
+        run: xvfb-run -a ./dist/unitconverter --smoke-test
       - name: Prepare AppDir
         run: |
-          mkdir -p AppDir/usr/bin
-          cp dist/unitconverter AppDir/usr/bin/
-          chmod +x AppDir/usr/bin/unitconverter
-
-      - name: Download appimagetool
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+          cp dist/unitconverter AppDir/usr/bin/unitconverter
+          cp assets/unitconverter.svg AppDir/unitconverter.svg
+          cp assets/unitconverter.svg AppDir/usr/share/icons/hicolor/scalable/apps/unitconverter.svg
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          exec "$APPDIR/usr/bin/unitconverter" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          cat > AppDir/unitconverter.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Unit Converter
+          Exec=unitconverter
+          Icon=unitconverter
+          Categories=Utility;
+          Terminal=false
+          EOF
+          cp AppDir/unitconverter.desktop AppDir/usr/share/applications/unitconverter.desktop
+      - name: Download and verify pinned appimagetool
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            --output appimagetool-x86_64.AppImage \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          echo 'ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool-x86_64.AppImage' | sha256sum --check
+          curl --fail --location --silent --show-error \
+            --output runtime-x86_64 \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          echo '2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64' | sha256sum --check
           chmod +x appimagetool-x86_64.AppImage
-
-      - name: Build AppImage
+      - name: Build and smoke-test AppImage
         run: |
-          ./appimagetool-x86_64.AppImage AppDir unitconverter-x86_64.AppImage
-
-      - name: Upload AppImage to Release
-        uses: softprops/action-gh-release@v1
+          artifact="unitconverter-$VERSION-linux-x86_64.AppImage"
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-x86_64.AppImage --runtime-file runtime-x86_64 AppDir "$artifact"
+          chmod +x "$artifact"
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a "./$artifact" --smoke-test
+          sha256sum "$artifact" | awk '{print $1 "  " $2}' > "$artifact.sha256"
+      - uses: actions/upload-artifact@v4
         with:
-          files: unitconverter-x86_64.AppImage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: linux-dist
+          path: |
+            unitconverter-${{ needs.release-metadata.outputs.version }}-linux-x86_64.AppImage
+            unitconverter-${{ needs.release-metadata.outputs.version }}-linux-x86_64.AppImage.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish complete signed release
+    needs: [release-metadata, validate-release-secrets, validate, build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-dist'
+          path: artifacts
+          merge-multiple: true
+      - name: Verify all checksums and create release manifest
+        run: |
+          set -euo pipefail
+          cd artifacts
+          cat ./*.sha256 > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - name: Publish versioned artifacts after every platform succeeds
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-metadata.outputs.tag_name }}
+          target_commitish: ${{ needs.release-metadata.outputs.source_sha }}
+          name: Unit Converter ${{ needs.release-metadata.outputs.tag_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/*
