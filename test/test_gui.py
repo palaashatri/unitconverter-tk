@@ -5,6 +5,7 @@ from tkinter import ttk
 
 import pytest
 
+import app as app_module
 from app import build_main_window
 from src import angle, cooking, data_rate, fuel_economy, temperature
 
@@ -36,6 +37,23 @@ def _named_widget(root, name):
     return next(widget for widget in _walk(root) if widget.winfo_name() == name)
 
 
+def _status_text(root):
+    status = _named_widget(root, "status_bar")
+    return root.getvar(status.cget("textvariable"))
+
+
+def _is_alive(root):
+    try:
+        return bool(root.winfo_exists())
+    except tk.TclError:
+        return False
+
+
+def _close_window(root):
+    close_command = root.tk.call("wm", "protocol", root._w, "WM_DELETE_WINDOW")
+    root.tk.call(close_command)
+
+
 def _drive_converter(root, frame, from_label, to_label, amount):
     combos = [w for w in _walk(frame) if isinstance(w, ttk.Combobox)]
     entries = [
@@ -52,9 +70,9 @@ def _drive_converter(root, frame, from_label, to_label, amount):
     return entries[1].get()
 
 
-def test_main_window_contains_all_fourteen_converter_categories(tk_root):
+def test_main_window_contains_all_fourteen_converter_categories(tk_root, tmp_path):
     root, _ = tk_root
-    app = build_main_window()
+    app = build_main_window(settings_path=tmp_path / "settings.json")
     try:
         names = [_notebook(app).tab(tab_id, "text") for tab_id in _notebook(app).tabs()]
         assert names == [
@@ -95,9 +113,11 @@ def test_new_converter_tabs_convert_representative_values(
         ("72 F to C", "button", "22.222222"),
     ],
 )
-def test_quick_convert_displays_result_and_records_once(tk_root, expression, action, expected):
+def test_quick_convert_displays_result_and_records_once(
+    tk_root, tmp_path, expression, action, expected
+):
     _, errors = tk_root
-    app = build_main_window()
+    app = build_main_window(settings_path=tmp_path / "settings.json")
     app.deiconify()
     app.report_callback_exception = lambda *args: errors.append(args)
     try:
@@ -125,10 +145,10 @@ def test_quick_convert_displays_result_and_records_once(tk_root, expression, act
     [("1 furlong to mi", "unknown unit"), ("1 b to byte/s", "ambiguous unit")],
 )
 def test_quick_convert_shows_actionable_errors_without_callback_exceptions(
-    tk_root, expression, message
+    tk_root, tmp_path, expression, message
 ):
     _, errors = tk_root
-    app = build_main_window()
+    app = build_main_window(settings_path=tmp_path / "settings.json")
     app.withdraw()
     app.report_callback_exception = lambda *args: errors.append(args)
     try:
@@ -138,6 +158,76 @@ def test_quick_convert_shows_actionable_errors_without_callback_exceptions(
         app.update()
         result = _named_widget(app, "quick_convert_result").cget("text")
         assert message in result.lower()
+        assert errors == []
+    finally:
+        app.destroy()
+
+
+def test_preferences_and_history_restore_after_close_and_reopen(tk_root, tmp_path):
+    root, errors = tk_root
+    path = tmp_path / "settings.json"
+    app = build_main_window(settings_path=path)
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        _named_widget(app, "precision_spinbox").set("12")
+        _named_widget(app, "scientific_notation").invoke()
+        entry = _named_widget(app, "quick_convert_entry")
+        entry.insert(0, "10 km in mi")
+        _named_widget(app, "quick_convert_button").invoke()
+        app.update()
+        _close_window(app)
+
+        reopened = build_main_window(settings_path=path)
+        try:
+            assert reopened.app_state.precision == 12
+            assert reopened.app_state.use_scientific is True
+            assert reopened.app_state.history[0].startswith("10 km in mi =")
+            history = _named_widget(reopened, "history_text")
+            assert "10 km in mi" in history.get("1.0", "end")
+            assert errors == []
+        finally:
+            reopened.destroy()
+    finally:
+        if _is_alive(app):
+            app.destroy()
+
+
+def test_malformed_settings_are_preserved_when_opening_and_closing(tk_root, tmp_path):
+    root, _ = tk_root
+    path = tmp_path / "settings.json"
+    original = "{broken settings"
+    path.write_text(original)
+    app = build_main_window(settings_path=path)
+    try:
+        assert app.app_state.precision == 6
+        assert "invalid" in _status_text(app).lower()
+        _close_window(app)
+        assert path.read_text() == original
+    finally:
+        if _is_alive(app):
+            app.destroy()
+
+
+def test_failed_settings_write_keeps_conversion_available_and_reports_status(
+    tk_root, tmp_path, monkeypatch
+):
+    root, errors = tk_root
+    path = tmp_path / "settings.json"
+
+    def fail_save(state, target):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(app_module, "save_settings", fail_save, raising=False)
+    app = build_main_window(settings_path=path)
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        entry = _named_widget(app, "quick_convert_entry")
+        entry.insert(0, "10 km in mi")
+        _named_widget(app, "quick_convert_button").invoke()
+        app.update()
+        assert "6.213712" in _named_widget(app, "quick_convert_result").cget("text")
+        assert "could not be written" in _status_text(app).lower()
+        assert app.winfo_exists()
         assert errors == []
     finally:
         app.destroy()

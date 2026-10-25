@@ -9,12 +9,12 @@ def TemperatureConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.F
     frame = ttk.Frame(parent, padding=12)
     frame.columnconfigure(1, weight=1)
 
-    cel_temp = tk.StringVar(value="")
-    fah_temp = tk.StringVar(value="")
-    kel_temp = tk.StringVar(value="")
+    cel_temp = tk.StringVar(master=frame, value="")
+    fah_temp = tk.StringVar(master=frame, value="")
+    kel_temp = tk.StringVar(master=frame, value="")
     
     converting = False
-    last_edited = tk.StringVar(value="")
+    last_edited = tk.StringVar(master=frame, value="")
 
     def set_status(message: str, style: str = "info") -> None:
         if on_status:

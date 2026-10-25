@@ -1,6 +1,7 @@
 import sys
 import tkinter as tk
 from tkinter import ttk
+from pathlib import Path
 
 from src import (
     angle,
@@ -20,20 +21,12 @@ from src import (
     quick_convert,
 )
 from src import utils
-
-
-class AppState:
-    """Shared application state"""
-    def __init__(self):
-        self.precision = 6
-        self.use_scientific = False
-        self.history = []
-        self.dark_mode = False
-    
-    def add_history(self, entry: str):
-        self.history.insert(0, entry)
-        if len(self.history) > 10:
-            self.history = self.history[:10]
+from src.app_state import AppState
+from src.persistence import (
+    load_settings,
+    save_settings,
+    settings_path as default_settings_path,
+)
 
 
 def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
@@ -103,9 +96,12 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
     return style
 
 
-def build_main_window() -> tk.Tk:
-    state = AppState()
+def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
+    path = Path(settings_path) if settings_path is not None else default_settings_path()
+    state, settings_warning = load_settings(path)
     root = tk.Tk()
+    root.app_state = state
+    root.settings_path = path
     root.title("Unit Converter")
     root.minsize(920, 600)
     root.columnconfigure(0, weight=1)
@@ -166,8 +162,8 @@ def build_main_window() -> tk.Tk:
     
     ttk.Button(header, text="About", command=show_about, width=8).grid(row=0, column=1, sticky="e", padx=5)
     
-    status_var = tk.StringVar(value="Select a tab to start")
-    status_style = tk.StringVar(value="Info.TLabel")
+    status_var = tk.StringVar(master=root, value="Select a tab to start")
+    status_style = tk.StringVar(master=root, value="Info.TLabel")
     
     def update_status(msg: str, style: str = "info"):
         status_var.set(msg)
@@ -177,6 +173,24 @@ def build_main_window() -> tk.Tk:
             status_style.set("Error.TLabel")
         else:
             status_style.set("Info.TLabel")
+
+    settings_dirty = False
+
+    def persist_settings(mark_dirty=True):
+        nonlocal settings_dirty
+        if mark_dirty:
+            settings_dirty = True
+        try:
+            save_settings(state, path)
+        except OSError:
+            update_status(
+                "Saved settings could not be written; conversions remain available.",
+                "error",
+            )
+            return False
+        return True
+
+    state.on_change = lambda: persist_settings(mark_dirty=True)
 
     quick_frame = ttk.Frame(left_panel)
     quick_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
@@ -254,7 +268,9 @@ def build_main_window() -> tk.Tk:
     for frame, text in converters:
         notebook.add(frame, text=text)
 
-    status_bar = ttk.Label(left_panel, textvariable=status_var, anchor="w")
+    status_bar = ttk.Label(
+        left_panel, textvariable=status_var, anchor="w", name="status_bar"
+    )
     status_bar.grid(row=3, column=0, sticky="ew", pady=(10, 0))
     status_bar.configure(style=status_style.get())
     
@@ -268,24 +284,69 @@ def build_main_window() -> tk.Tk:
     settings_frame.pack(fill="x", pady=(0, 10))
     
     ttk.Label(settings_frame, text="Decimal Places:").pack(anchor="w")
-    precision_var = tk.IntVar(value=state.precision)
-    precision_spin = ttk.Spinbox(settings_frame, from_=0, to=15, textvariable=precision_var, width=10)
+    precision_var = tk.IntVar(master=root, value=state.precision)
+    precision_spin = ttk.Spinbox(
+        settings_frame,
+        from_=0,
+        to=15,
+        textvariable=precision_var,
+        width=10,
+        name="precision_spinbox",
+    )
     precision_spin.pack(anchor="w", pady=(2, 8))
-    
+
+    changing_precision = False
+
     def update_precision(*args):
-        state.precision = precision_var.get()
+        nonlocal changing_precision
+        if changing_precision:
+            return
+        try:
+            value = precision_var.get()
+        except tk.TclError:
+            update_status("Decimal places must be a whole number from 0 to 15.", "error")
+            changing_precision = True
+            precision_var.set(state.precision)
+            changing_precision = False
+            return
+        bounded = min(15, max(0, value))
+        if bounded != value:
+            update_status("Decimal places must be from 0 to 15.", "error")
+            changing_precision = True
+            precision_var.set(bounded)
+            changing_precision = False
+            value = bounded
+        if state.precision != value:
+            state.precision = value
+            persist_settings()
     precision_var.trace_add("write", update_precision)
     
-    sci_var = tk.BooleanVar(value=state.use_scientific)
-    ttk.Checkbutton(settings_frame, text="Scientific notation", variable=sci_var,
-                    command=lambda: setattr(state, 'use_scientific', sci_var.get())).pack(anchor="w")
+    sci_var = tk.BooleanVar(master=root, value=state.use_scientific)
+    def update_scientific():
+        state.use_scientific = sci_var.get()
+        persist_settings()
+
+    ttk.Checkbutton(
+        settings_frame,
+        text="Scientific notation",
+        variable=sci_var,
+        command=update_scientific,
+        name="scientific_notation",
+    ).pack(anchor="w")
 
     # History panel
     history_frame = ttk.LabelFrame(right_panel, text="Recent Conversions", padding=10)
     history_frame.pack(fill="both", expand=True)
     
-    history_text = tk.Text(history_frame, height=15, width=30, wrap="word", state="disabled",
-                          font=("Courier", 9))
+    history_text = tk.Text(
+        history_frame,
+        height=15,
+        width=30,
+        wrap="word",
+        state="disabled",
+        font=("Courier", 9),
+        name="history_text",
+    )
     history_text.pack(fill="both", expand=True)
     
     def update_history():
@@ -296,6 +357,10 @@ def build_main_window() -> tk.Tk:
         history_text.configure(state="disabled")
     
     state.update_history_display = update_history
+    update_history()
+
+    if settings_warning:
+        update_status(settings_warning, "error")
 
     # Keyboard shortcuts
     def switch_tab(index):
@@ -304,12 +369,19 @@ def build_main_window() -> tk.Tk:
     
     def reset_current_tab():
         update_status("Reset current tab", "info")
+
+    def close_window():
+        if not (settings_warning and not settings_dirty):
+            persist_settings(mark_dirty=False)
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", close_window)
     
     # Platform-specific modifier key
     mod_key = "Command" if sys.platform == "darwin" else "Control"
     
-    root.bind(f"<{mod_key}-w>", lambda e: root.destroy())
-    root.bind(f"<{mod_key}-q>", lambda e: root.destroy())
+    root.bind(f"<{mod_key}-w>", lambda e: close_window())
+    root.bind(f"<{mod_key}-q>", lambda e: close_window())
     for i in range(10):
         root.bind(f"<{mod_key}-{i}>", lambda e, idx=i-1: switch_tab(idx) if idx >= 0 else switch_tab(9))
 
