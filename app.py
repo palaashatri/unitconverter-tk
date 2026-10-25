@@ -395,6 +395,10 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         update_status("Reset current tab", "info")
 
     def close_window():
+        for flush_pending_history in tuple(
+            getattr(root, "_pending_history_flushers", ())
+        ):
+            flush_pending_history()
         commit_precision()
         if not (settings_warning and not settings_dirty):
             persist_settings(mark_dirty=False)

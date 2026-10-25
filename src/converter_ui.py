@@ -22,6 +22,7 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     converting = False
     pending_history_after_id = None
     pending_history_entry = None
+    pending_history_flushers = None
 
     def set_status(message, style="info"):
         if on_status:
@@ -46,6 +47,13 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
         state.add_history(entry)
         if hasattr(state, "update_history_display"):
             state.update_history_display()
+
+    def flush_pending_history():
+        nonlocal pending_history_after_id
+        if pending_history_after_id is not None:
+            frame.after_cancel(pending_history_after_id)
+            pending_history_after_id = None
+        commit_pending_history()
 
     def update_history(raw, formatted, source, target, committed=False):
         nonlocal pending_history_after_id, pending_history_entry
@@ -155,7 +163,21 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     def cleanup_history_timer(event):
         if event.widget is frame:
             cancel_pending_history()
+            if pending_history_flushers is not None:
+                try:
+                    pending_history_flushers.remove(flush_pending_history)
+                except ValueError:
+                    pass
 
     frame.bind("<Destroy>", cleanup_history_timer, add="+")
+    if state is not None and hasattr(state, "add_history"):
+        root = frame.winfo_toplevel()
+        pending_history_flushers = getattr(
+            root, "_pending_history_flushers", None
+        )
+        if pending_history_flushers is None:
+            pending_history_flushers = []
+            root._pending_history_flushers = pending_history_flushers
+        pending_history_flushers.append(flush_pending_history)
     input_field.focus_set()
     return frame

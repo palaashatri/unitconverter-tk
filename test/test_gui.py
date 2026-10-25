@@ -264,6 +264,34 @@ def test_live_converter_records_only_the_final_value_after_idle(tk_root):
     assert errors == []
 
 
+def test_close_flushes_pending_conversion_history_before_saving(tk_root, tmp_path):
+    _, errors = tk_root
+    path = tmp_path / "settings.json"
+    app = build_main_window(settings_path=path)
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        notebook = _notebook(app)
+        angle_frame = next(
+            notebook.nametowidget(tab_id)
+            for tab_id in notebook.tabs()
+            if notebook.tab(tab_id, "text") == "Angle"
+        )
+        _drive_converter(app, angle_frame, "Radians", "Degrees", "90")
+
+        assert app.app_state.history == []
+        _close_window(app)
+
+        reopened = build_main_window(settings_path=path)
+        try:
+            assert reopened.app_state.history == ["90 Radians = 5156.620156 Degrees"]
+        finally:
+            reopened.destroy()
+        assert errors == []
+    finally:
+        if _is_alive(app):
+            app.destroy()
+
+
 def test_state_changes_debounce_settings_writes(tk_root, tmp_path, monkeypatch):
     _, errors = tk_root
     writes = []
