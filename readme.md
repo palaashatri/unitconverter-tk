@@ -1,9 +1,7 @@
 # Unit Converter in Python
 ## Badges
 [![Cross-Platform Release](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml)
-[![Code Coverage [PyTest-Cov]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/code-coverage-term.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/code-coverage-term.yml)
-[![Lint [Flake8]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/flake8-lint.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/flake8-lint.yml)
-[![Unit Test [PyTest]](https://github.com/palaashatri/unitconverter-tk/actions/workflows/unit-test.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/unit-test.yml)
+[![CI](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml)
 
 Now with native look-and-feel for each Windows & macOS!
 

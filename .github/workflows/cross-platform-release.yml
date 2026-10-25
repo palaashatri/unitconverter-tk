@@ -31,7 +31,7 @@ jobs:
           pyinstaller --onefile --name unitconverter app.py
 
       - name: Upload .exe to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/unitconverter.exe
         env:
@@ -68,7 +68,7 @@ jobs:
           zip -r unitconverter-mac.zip *.app
 
       - name: Upload .app to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/unitconverter-mac.zip
         env:
@@ -123,7 +123,7 @@ jobs:
           ./appimagetool-x86_64.AppImage AppDir unitconverter-x86_64.AppImage
 
       - name: Upload AppImage to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: unitconverter-x86_64.AppImage
         env:
