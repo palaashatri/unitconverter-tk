@@ -238,6 +238,86 @@ def test_precision_spinbox_allows_clear_and_replace_before_commit(tk_root, tmp_p
         app.destroy()
 
 
+def test_live_converter_records_only_the_final_value_after_idle(tk_root):
+    root, errors = tk_root
+    state = AppState()
+    frame = angle.AngleConverter(root, lambda *_: None, state)
+    frame.pack()
+
+    _drive_converter(root, frame, "Radians", "Degrees", "1")
+    input_field = next(
+        widget
+        for widget in _walk(frame)
+        if isinstance(widget, ttk.Entry) and widget.cget("state") != "readonly"
+    )
+    input_field.insert("end", "0")
+    root.update()
+
+    assert state.history == []
+
+    finished = tk.BooleanVar(master=root)
+    root.after(600, lambda: finished.set(True))
+    root.wait_variable(finished)
+
+    assert len(state.history) == 1
+    assert state.history[0].startswith("10 Radians =")
+    assert errors == []
+
+
+def test_close_flushes_pending_conversion_history_before_saving(tk_root, tmp_path):
+    _, errors = tk_root
+    path = tmp_path / "settings.json"
+    app = build_main_window(settings_path=path)
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        notebook = _notebook(app)
+        angle_frame = next(
+            notebook.nametowidget(tab_id)
+            for tab_id in notebook.tabs()
+            if notebook.tab(tab_id, "text") == "Angle"
+        )
+        _drive_converter(app, angle_frame, "Radians", "Degrees", "90")
+
+        assert app.app_state.history == []
+        _close_window(app)
+
+        reopened = build_main_window(settings_path=path)
+        try:
+            assert reopened.app_state.history == ["90 Radians = 5156.620156 Degrees"]
+        finally:
+            reopened.destroy()
+        assert errors == []
+    finally:
+        if _is_alive(app):
+            app.destroy()
+
+
+def test_state_changes_debounce_settings_writes(tk_root, tmp_path, monkeypatch):
+    _, errors = tk_root
+    writes = []
+    monkeypatch.setattr(
+        app_module,
+        "save_settings",
+        lambda state, path: writes.append((state.precision, list(state.history))),
+    )
+    app = build_main_window(settings_path=tmp_path / "settings.json")
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        app.app_state.add_history("partial")
+        app.app_state.add_history("final")
+
+        assert writes == []
+
+        finished = tk.BooleanVar(master=app)
+        app.after(500, lambda: finished.set(True))
+        app.wait_variable(finished)
+
+        assert writes == [(6, ["final", "partial"])]
+        assert errors == []
+    finally:
+        app.destroy()
+
+
 def test_malformed_settings_are_preserved_when_opening_and_closing(tk_root, tmp_path):
     root, _ = tk_root
     path = tmp_path / "settings.json"
