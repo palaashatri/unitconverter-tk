@@ -55,6 +55,10 @@ def test_agents_commands_and_repository_map_match_the_implemented_project():
     assert "fourteen" in agents or "14" in agents
     assert "known issues (2026-10-20)" not in agents
     assert "python 3.9" not in agents
+    assert "least-privilege token" in agents
+    agents_source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "`kb/s` differs from `kB/s`" in agents_source
+    assert "`kib/s` differs from `KiB/s`" in agents_source
 
 
 def test_unit_definition_document_covers_convention_sensitive_units():
@@ -67,3 +71,10 @@ def test_unit_definition_document_covers_convention_sensitive_units():
         "torr and mmhg", "average gregorian", "mach 1", "absolute zero",
     ):
         assert convention in definitions
+
+
+def test_readme_explains_case_sensitive_data_rate_symbols():
+    readme = (ROOT / "readme.md").read_text(encoding="utf-8")
+
+    assert "`kb/s`" in readme and "`kB/s`" in readme
+    assert "`kib/s`" in readme and "`KiB/s`" in readme

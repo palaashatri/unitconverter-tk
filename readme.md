@@ -16,7 +16,7 @@ Use the global type-to-convert field for expressions such as:
 72 F to C       → 22.222222 Celsius
 ```
 
-Unit names are case-insensitive. Use full words when a short symbol could mean two things; for example, `b` and `B` are ambiguous under case-insensitive parsing, so enter `bit` or `byte`.
+Most unit names are case-insensitive. Data-rate symbols preserve case to distinguish bits from bytes: `kb/s` is kilobits per second, while `kB/s` is kilobytes per second; `kib/s` and `KiB/s` make the same distinction for binary rates. In digital storage, standalone `b` and `B` are ambiguous, so enter `bit` or `byte`.
 
 The app remembers decimal precision, scientific notation, and up to ten recent conversions. Settings use versioned JSON with atomic writes and stay on the device. If the settings file is invalid or unavailable, conversions remain usable and the app reports the issue.
 

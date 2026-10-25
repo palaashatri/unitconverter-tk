@@ -47,16 +47,18 @@ Linux GUI tests need a display; headless runs use `xvfb-run -a pytest -q`. Tkint
 
 - Keep conversion math in pure `src/convert_*.py` modules. UI modules parse input, call converters, and format output.
 - Add a `pytest.approx` reference test for each new or changed unit and round-trip coverage for each ordered pair.
+- Keep full unit names case-insensitive, but preserve case in data-rate symbols so `kb/s` differs from `kB/s` and `kib/s` differs from `KiB/s`.
 - Reject unknown unit codes, non-finite values, undefined reciprocal fuel-economy conversions, and temperatures below absolute zero.
 - Invalid input must produce actionable UI feedback and must not raise into a Tk callback.
 - Settings stay in the operating system's per-user configuration directory. Persist precision, scientific notation, and up to ten recent conversions with atomic replacement. Storage errors must leave the app usable; do not overwrite unreadable settings until the user changes state.
 - Validate workflow edits with actionlint. Keep signing values out of source files and logs.
+- Preserve the release workflow's least-privilege token and signing-secret scopes when changing jobs.
 
 ## Release workflow
 
 Pushing to `main` creates a patch tag with the repository `GITHUB_TOKEN` and calls the release workflow. A manually pushed stable `vMAJOR.MINOR.PATCH` tag uses the same release path. The release stops before platform builds if required signing secrets are missing and publishes only after Windows, macOS, and Linux packages pass smoke tests and checksum verification.
 
-Maintainers configure these repository Actions secrets: `WINDOWS_SIGNING_CERTIFICATE`, `WINDOWS_SIGNING_PASSWORD`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. Certificate secrets contain base64-encoded PFX/P12 files. Signing improves publisher verification and reputation but cannot guarantee a clean antivirus or reputation-service verdict.
+Maintainers configure these repository Actions secrets: `WINDOWS_SIGNING_CERTIFICATE`, `WINDOWS_SIGNING_PASSWORD`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. Certificate secrets contain base64-encoded PFX/P12 files. Release jobs expose them only to signing steps after package smoke tests; contents write permission belongs only to tag creation and publication, and checkout credentials are not persisted. Signing improves publisher verification and reputation but cannot guarantee a clean antivirus or reputation-service verdict.
 
 ## Git workflow
 

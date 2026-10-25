@@ -92,7 +92,7 @@ One U.S. customary cup is 8 fluid ounces, one tablespoon is 1/2 fluid ounce, and
 
 Digital storage uses bytes as its base. The existing storage category uses decimal SI multiples: kB = 1000 bytes, MB = 1,000,000 bytes, GB = 1,000,000,000 bytes, TB = 1,000,000,000,000 bytes, and PB = 1,000,000,000,000,000 bytes. One byte is 8 bits.
 
-Data rate uses bits per second as its base. Lowercase `k`, `M`, `G`, and `T` denote decimal SI multiples (powers of 1000); `Ki`, `Mi`, `Gi`, and `Ti` denote binary IEC multiples (powers of 1024). Uppercase `B` denotes bytes; lowercase `bit` denotes bits.
+Data rate uses bits per second as its base. SI prefix symbols `k`, `M`, `G`, and `T` denote decimal multiples (powers of 1000); `Ki`, `Mi`, `Gi`, and `Ti` denote binary IEC multiples (powers of 1024). Symbols preserve case: lowercase `b` denotes bits and uppercase `B` denotes bytes. For example, `kb/s` is kilobits per second, `kB/s` is kilobytes per second, `kib/s` is kibibits per second, and `KiB/s` is kibibytes per second.
 
 ## Angle
 

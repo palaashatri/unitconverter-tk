@@ -58,3 +58,33 @@ def test_quick_conversion_rejects_non_finite_result():
 def test_quick_conversion_reports_case_collapsed_bit_byte_symbol_as_ambiguous():
     with pytest.raises(ValueError, match="ambiguous unit"):
         convert_expression("1 b to byte/s")
+
+
+@pytest.mark.parametrize(
+    "symbol,bits_per_second",
+    [
+        ("b/s", 1),
+        ("kb/s", 1_000),
+        ("Mb/s", 1_000_000),
+        ("Gb/s", 1_000_000_000),
+        ("Tb/s", 1_000_000_000_000),
+        ("B/s", 8),
+        ("kB/s", 8_000),
+        ("MB/s", 8_000_000),
+        ("GB/s", 8_000_000_000),
+        ("TB/s", 8_000_000_000_000),
+        ("kib/s", 1_024),
+        ("mib/s", 1_024**2),
+        ("gib/s", 1_024**3),
+        ("tib/s", 1_024**4),
+        ("KiB/s", 8 * 1_024),
+        ("MiB/s", 8 * 1_024**2),
+        ("GiB/s", 8 * 1_024**3),
+        ("TiB/s", 8 * 1_024**4),
+    ],
+)
+def test_quick_conversion_preserves_case_sensitive_data_rate_symbols(
+    symbol, bits_per_second
+):
+    result = convert_expression(f"1 {symbol} to bit/s")
+    assert result.value == pytest.approx(bits_per_second)

@@ -42,9 +42,8 @@ _definitions = [
     ("area", "sqbarn", "Barns", ("sqbarn", "barn", "barns", "square barn")),
     ("area", "sqhectare", "Hectares", ("sqhectare", "hectare", "hectares", "square hectare")),
     ("area", "sqhomestead", "Homesteads", ("sqhomestead", "homestead", "homesteads", "square homestead")),
-    # The lower/upper-case one-letter symbols b and B cannot both be resolved
-    # under this app's case-insensitive syntax, so that shorthand is flagged
-    # as ambiguous and users can spell out "bit" or "byte" instead.
+    # The one-letter digital-storage symbols b and B share a case-insensitive
+    # alias here, so users must spell out "bit" or "byte" to disambiguate them.
     ("digital", "bit", "Bits", ("b", "bit", "bits")),
     ("digital", "byte", "Bytes", ("byte", "bytes", "B")),
     ("digital", "kB", "Kilobytes", ("kb", "kilobyte", "kilobytes")),
@@ -112,24 +111,24 @@ _definitions = [
     ("angle", "turn", "Turns", ("turn", "turns", "revolution", "revolutions")),
     ("angle", "arcmin", "Arcminutes", ("arcmin", "arcminute", "arcminutes")),
     ("angle", "arcsec", "Arcseconds", ("arcsec", "arcsecond", "arcseconds")),
-    ("data_rate", "bit/s", "bit/s", ("bit/s", "bps", "bits per second")),
-    ("data_rate", "kbit/s", "kbit/s", ("kbit/s", "kilobit/s", "kilobits per second")),
-    ("data_rate", "Mbit/s", "Mbit/s", ("mbit/s", "megabit/s", "megabits per second")),
-    ("data_rate", "Gbit/s", "Gbit/s", ("gbit/s", "gigabit/s", "gigabits per second")),
-    ("data_rate", "Tbit/s", "Tbit/s", ("tbit/s", "terabit/s", "terabits per second")),
-    ("data_rate", "byte/s", "Byte/s", ("byte/s", "bytes per second")),
-    ("data_rate", "kB/s", "kB/s", ("kb/s", "kilobyte/s", "kilobytes per second")),
-    ("data_rate", "MB/s", "MB/s", ("mb/s", "megabyte/s", "megabytes per second")),
-    ("data_rate", "GB/s", "GB/s", ("gb/s", "gigabyte/s", "gigabytes per second")),
-    ("data_rate", "TB/s", "TB/s", ("tb/s", "terabyte/s", "terabytes per second")),
-    ("data_rate", "Kibit/s", "Kibit/s", ("kibit/s", "kibibit/s")),
-    ("data_rate", "Mibit/s", "Mibit/s", ("mibit/s", "mebibit/s")),
-    ("data_rate", "Gibit/s", "Gibit/s", ("gibit/s", "gibibit/s")),
-    ("data_rate", "Tibit/s", "Tibit/s", ("tibit/s", "tebibit/s")),
-    ("data_rate", "KiB/s", "KiB/s", ("kib/s", "kibibyte/s")),
-    ("data_rate", "MiB/s", "MiB/s", ("mib/s", "mebibyte/s")),
-    ("data_rate", "GiB/s", "GiB/s", ("gib/s", "gibibyte/s")),
-    ("data_rate", "TiB/s", "TiB/s", ("tib/s", "tebibyte/s")),
+    ("data_rate", "bit/s", "bit/s", ("bps", "bits per second")),
+    ("data_rate", "kbit/s", "kbit/s", ("kilobit per second", "kilobits per second")),
+    ("data_rate", "Mbit/s", "Mbit/s", ("megabit per second", "megabits per second")),
+    ("data_rate", "Gbit/s", "Gbit/s", ("gigabit per second", "gigabits per second")),
+    ("data_rate", "Tbit/s", "Tbit/s", ("terabit per second", "terabits per second")),
+    ("data_rate", "byte/s", "Byte/s", ("byte per second", "bytes per second")),
+    ("data_rate", "kB/s", "kB/s", ("kilobyte per second", "kilobytes per second")),
+    ("data_rate", "MB/s", "MB/s", ("megabyte per second", "megabytes per second")),
+    ("data_rate", "GB/s", "GB/s", ("gigabyte per second", "gigabytes per second")),
+    ("data_rate", "TB/s", "TB/s", ("terabyte per second", "terabytes per second")),
+    ("data_rate", "Kibit/s", "Kibit/s", ("kibibit per second", "kibibits per second")),
+    ("data_rate", "Mibit/s", "Mibit/s", ("mebibit per second", "mebibits per second")),
+    ("data_rate", "Gibit/s", "Gibit/s", ("gibibit per second", "gibibits per second")),
+    ("data_rate", "Tibit/s", "Tibit/s", ("tebibit per second", "tebibits per second")),
+    ("data_rate", "KiB/s", "KiB/s", ("kibibyte per second", "kibibytes per second")),
+    ("data_rate", "MiB/s", "MiB/s", ("mebibyte per second", "mebibytes per second")),
+    ("data_rate", "GiB/s", "GiB/s", ("gibibyte per second", "gibibytes per second")),
+    ("data_rate", "TiB/s", "TiB/s", ("tebibyte per second", "tebibytes per second")),
     ("fuel_economy", "l_per_100km", "L/100 km", ("l/100 km", "l/100km", "liters per 100 km", "litres per 100 km")),
     ("fuel_economy", "km_per_l", "km/L", ("km/l", "kilometers per liter", "kilometres per litre")),
     ("fuel_economy", "mpg_us", "U.S. mpg", ("mpg", "mpg us", "mpg (us)", "us mpg", "u.s. mpg")),
@@ -137,11 +136,39 @@ _definitions = [
 ]
 
 
+_DATA_RATE_SYMBOL_ALIASES = {
+    "b/s": "bit/s",
+    "kb/s": "kbit/s",
+    "Mb/s": "Mbit/s",
+    "Gb/s": "Gbit/s",
+    "Tb/s": "Tbit/s",
+    "B/s": "byte/s",
+    "kib/s": "Kibit/s",
+    "mib/s": "Mibit/s",
+    "gib/s": "Gibit/s",
+    "tib/s": "Tibit/s",
+}
+
+
+def _data_rate_symbols():
+    symbols = {}
+    for category, code, label, _ in _definitions:
+        if category == "data_rate":
+            symbols[code] = UnitRef(category, code, label)
+    for symbol, code in _DATA_RATE_SYMBOL_ALIASES.items():
+        symbols[symbol] = symbols[code]
+    return symbols
+
+
+_DATA_RATE_SYMBOLS = _data_rate_symbols()
+
+
 def _build_registry():
     registry = {}
     for category, code, label, aliases in _definitions:
         unit = UnitRef(category, code, label)
-        for alias in (code, label, *aliases):
+        names = aliases if category == "data_rate" else (code, label, *aliases)
+        for alias in names:
             normalized = _normalize(alias)
             units = registry.setdefault(normalized, [])
             if unit not in units:
@@ -153,6 +180,9 @@ UNIT_REGISTRY = _build_registry()
 
 
 def resolve_unit(alias: str) -> UnitRef:
+    symbol = _DATA_RATE_SYMBOLS.get(alias.strip()) if isinstance(alias, str) else None
+    if symbol is not None:
+        return symbol
     normalized = _normalize(alias)
     matches = UNIT_REGISTRY.get(normalized, ())
     if not matches:

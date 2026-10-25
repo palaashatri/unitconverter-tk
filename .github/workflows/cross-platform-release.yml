@@ -28,7 +28,7 @@ on:
         required: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-metadata:
@@ -46,6 +46,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ inputs.source_sha }}
+          persist-credentials: false
       - name: Validate version and commit inputs
         id: metadata
         shell: bash
@@ -74,6 +75,10 @@ jobs:
     needs: release-metadata
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - name: Fail with missing secret names
         env:
           WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
@@ -93,6 +98,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - name: Install Tk and Xvfb
         run: |
           sudo apt-get update
@@ -122,12 +128,11 @@ jobs:
     env:
       VERSION: ${{ needs.release-metadata.outputs.version }}
       SOURCE_SHA: ${{ needs.release-metadata.outputs.source_sha }}
-      WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
-      WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -141,6 +146,9 @@ jobs:
         run: ./dist/unitconverter.exe --smoke-test
       - name: Sign and timestamp executable
         shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
+          WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP "publisher.pfx"
           [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_SIGNING_CERTIFICATE))
@@ -170,15 +178,11 @@ jobs:
       VERSION: ${{ needs.release-metadata.outputs.version }}
       UNITCONVERTER_VERSION: ${{ needs.release-metadata.outputs.version }}
       SOURCE_SHA: ${{ needs.release-metadata.outputs.source_sha }}
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -192,6 +196,12 @@ jobs:
         run: dist/UnitConverter.app/Contents/MacOS/UnitConverter --smoke-test
       - name: Sign, notarize, and staple application
         shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           certificate_path="$RUNNER_TEMP/developer-id.p12"
@@ -236,6 +246,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.release-metadata.outputs.source_sha }}
+          persist-credentials: false
       - name: Install Tk, Xvfb, and AppImage runtime support
         run: |
           sudo apt-get update
@@ -300,6 +311,8 @@ jobs:
     name: Publish complete signed release
     needs: [release-metadata, validate-release-secrets, validate, build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:

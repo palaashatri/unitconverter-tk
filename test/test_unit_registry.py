@@ -18,6 +18,19 @@ def test_registry_reports_case_sensitive_bit_and_byte_symbol_as_ambiguous():
         resolve_unit("b")
 
 
+@pytest.mark.parametrize(
+    "label,code",
+    [
+        ("Meters/sec", "mps"),
+        ("Kilometers/hr", "kph"),
+        ("Miles/hr", "mph"),
+        ("Feet/sec", "fps"),
+    ],
+)
+def test_registry_resolves_speed_labels_as_shown_in_the_app(label, code):
+    assert resolve_unit(label).code == code
+
+
 def test_registry_contains_every_conversion_category():
     categories = {unit.category for units in UNIT_REGISTRY.values() for unit in units}
     assert categories == {
