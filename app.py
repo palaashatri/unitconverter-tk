@@ -2,7 +2,22 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
-from src import area, digital, length, temperature, weight, volume, speed, time_converter, pressure, energy
+from src import (
+    angle,
+    area,
+    cooking,
+    data_rate,
+    digital,
+    fuel_economy,
+    length,
+    temperature,
+    weight,
+    volume,
+    speed,
+    time_converter,
+    pressure,
+    energy,
+)
 
 
 class AppState:
@@ -176,6 +191,10 @@ def build_main_window() -> tk.Tk:
         (time_converter.TimeConverter(notebook, update_status, state), "Time"),
         (pressure.PressureConverter(notebook, update_status, state), "Pressure"),
         (energy.EnergyConverter(notebook, update_status, state), "Energy"),
+        (angle.AngleConverter(notebook, update_status, state), "Angle"),
+        (data_rate.DataRateConverter(notebook, update_status, state), "Data rate"),
+        (fuel_economy.FuelEconomyConverter(notebook, update_status, state), "Fuel economy"),
+        (cooking.CookingConverter(notebook, update_status, state), "Cooking"),
     ]
     
     for frame, text in converters:
