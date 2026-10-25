@@ -1,7 +1,9 @@
+import argparse
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import tkinter as tk
 from tkinter import ttk
-from pathlib import Path
 
 from src import (
     angle,
@@ -267,6 +269,9 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     
     for frame, text in converters:
         notebook.add(frame, text=text)
+    root.converter_tab_labels = tuple(
+        notebook.tab(tab_id, "text") for tab_id in notebook.tabs()
+    )
 
     status_bar = ttk.Label(
         left_panel, textvariable=status_var, anchor="w", name="status_bar"
@@ -388,6 +393,37 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     return root
 
 
-if __name__ == "__main__":
+def run_smoke_test() -> int:
+    """Start the Tk app, verify all category tabs, and exit without persistence."""
+    with TemporaryDirectory(prefix="unitconverter-smoke-") as temp_directory:
+        app = build_main_window(Path(temp_directory) / "settings.json")
+        try:
+            app.update()
+            if len(app.converter_tab_labels) != 14:
+                raise RuntimeError(
+                    f"Expected 14 converter tabs, found {len(app.converter_tab_labels)}"
+                )
+            print(f"Smoke test passed: {len(app.converter_tab_labels)} converter tabs")
+        finally:
+            app.destroy()
+    return 0
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="Unit Converter")
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    args = parser.parse_args(argv)
+    if args.smoke_test:
+        return run_smoke_test()
+
     app = build_main_window()
     app.mainloop()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

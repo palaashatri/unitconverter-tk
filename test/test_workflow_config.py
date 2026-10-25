@@ -13,8 +13,9 @@ def test_ci_runs_the_required_python_checks_and_gui_under_xvfb():
     assert "actions/checkout@v4" in ci
     assert "actions/setup-python@v5" in ci
     assert 'python-version: "3.12"' in ci
-    assert "pip install -r requirements-dev.txt" in ci
-    assert "xvfb-run -a pytest --cov=. --cov-report=term --cov-report=xml" in ci
+    assert "python3.12 -m venv .venv-ci" in ci
+    assert ".venv-ci/bin/python -m pip install -r requirements-dev.txt" in ci
+    assert "xvfb-run -a .venv-ci/bin/pytest --cov=. --cov-report=term --cov-report=xml" in ci
     assert "flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics" in ci
     assert "actionlint .github/workflows/*.yml .github/workflows/*.yaml" in ci
     assert "actions/upload-artifact@v4" in ci

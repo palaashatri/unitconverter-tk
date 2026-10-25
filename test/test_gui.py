@@ -273,3 +273,9 @@ def test_temperature_tab_rejects_below_absolute_zero_kelvin(tk_root):
     assert statuses[-1][1] == "error"
     assert "Kelvin" in statuses[-1][0]
     assert errors == []
+
+
+def test_packaged_smoke_test_mode_checks_all_tabs_and_exits(tk_root, capsys):
+    result = app_module.main(["--smoke-test"])
+    assert result == 0
+    assert "14 converter tabs" in capsys.readouterr().out

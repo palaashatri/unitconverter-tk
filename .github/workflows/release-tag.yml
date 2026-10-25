@@ -1,0 +1,17 @@
+name: Tagged Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish ${{ github.ref_name }}
+    uses: ./.github/workflows/cross-platform-release.yml
+    with:
+      tag_name: ${{ github.ref_name }}
+      source_sha: ${{ github.sha }}
+    secrets: inherit
