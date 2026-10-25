@@ -8,6 +8,7 @@ import pytest
 import app as app_module
 from app import build_main_window
 from src import angle, cooking, data_rate, fuel_economy, temperature
+from src.app_state import AppState
 
 
 @pytest.fixture
@@ -106,6 +107,24 @@ def test_new_converter_tabs_convert_representative_values(
     assert errors == []
 
 
+def test_angle_tab_rejects_unrepresentable_result_without_history(tk_root):
+    root, errors = tk_root
+    state = AppState()
+    statuses = []
+    frame = angle.AngleConverter(
+        root, lambda message, style="info": statuses.append((message, style)), state
+    )
+    frame.pack()
+
+    output = _drive_converter(root, frame, "Turns", "Radians", "1e308")
+
+    assert output == ""
+    assert statuses[-1][1] == "error"
+    assert "conversion result" in statuses[-1][0]
+    assert state.history == []
+    assert errors == []
+
+
 @pytest.mark.parametrize(
     ("expression", "action", "expected"),
     [
@@ -190,6 +209,33 @@ def test_preferences_and_history_restore_after_close_and_reopen(tk_root, tmp_pat
     finally:
         if _is_alive(app):
             app.destroy()
+
+
+def test_precision_spinbox_allows_clear_and_replace_before_commit(tk_root, tmp_path):
+    _, errors = tk_root
+    app = build_main_window(settings_path=tmp_path / "settings.json")
+    app.report_callback_exception = lambda *args: errors.append(args)
+    try:
+        precision = _named_widget(app, "precision_spinbox")
+        precision.delete(0, "end")
+        app.update()
+
+        assert precision.get() == ""
+        assert app.app_state.precision == 6
+
+        precision.insert(0, "12")
+        app.update()
+        assert precision.get() == "12"
+        assert app.app_state.precision == 6
+
+        precision.focus_force()
+        app.update()
+        precision.event_generate("<Return>")
+        app.update()
+        assert app.app_state.precision == 12
+        assert errors == []
+    finally:
+        app.destroy()
 
 
 def test_malformed_settings_are_preserved_when_opening_and_closing(tk_root, tmp_path):

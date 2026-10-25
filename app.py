@@ -289,42 +289,41 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     settings_frame.pack(fill="x", pady=(0, 10))
     
     ttk.Label(settings_frame, text="Decimal Places:").pack(anchor="w")
-    precision_var = tk.IntVar(master=root, value=state.precision)
+    precision_var = tk.StringVar(master=root, value=str(state.precision))
+
+    def commit_precision(event=None):
+        raw_value = precision_var.get().strip()
+        try:
+            value = int(raw_value)
+        except ValueError:
+            update_status(
+                "Decimal places must be a whole number from 0 to 15.", "error"
+            )
+            precision_var.set(str(state.precision))
+            return "break" if event is not None else None
+
+        bounded = min(15, max(0, value))
+        if bounded != value:
+            update_status("Decimal places must be from 0 to 15.", "error")
+            value = bounded
+        precision_var.set(str(value))
+        if state.precision != value:
+            state.precision = value
+            persist_settings()
+        return "break" if event is not None else None
+
     precision_spin = ttk.Spinbox(
         settings_frame,
         from_=0,
         to=15,
         textvariable=precision_var,
+        command=commit_precision,
         width=10,
         name="precision_spinbox",
     )
     precision_spin.pack(anchor="w", pady=(2, 8))
-
-    changing_precision = False
-
-    def update_precision(*args):
-        nonlocal changing_precision
-        if changing_precision:
-            return
-        try:
-            value = precision_var.get()
-        except tk.TclError:
-            update_status("Decimal places must be a whole number from 0 to 15.", "error")
-            changing_precision = True
-            precision_var.set(state.precision)
-            changing_precision = False
-            return
-        bounded = min(15, max(0, value))
-        if bounded != value:
-            update_status("Decimal places must be from 0 to 15.", "error")
-            changing_precision = True
-            precision_var.set(bounded)
-            changing_precision = False
-            value = bounded
-        if state.precision != value:
-            state.precision = value
-            persist_settings()
-    precision_var.trace_add("write", update_precision)
+    precision_spin.bind("<Return>", commit_precision)
+    precision_spin.bind("<FocusOut>", commit_precision)
     
     sci_var = tk.BooleanVar(master=root, value=state.use_scientific)
     def update_scientific():
@@ -376,6 +375,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         update_status("Reset current tab", "info")
 
     def close_window():
+        commit_precision()
         if not (settings_warning and not settings_dirty):
             persist_settings(mark_dirty=False)
         root.destroy()

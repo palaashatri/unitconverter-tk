@@ -21,6 +21,10 @@ def convert_by_factors(
     """Convert through a shared base unit using a category's factors."""
     amount = require_finite(amt)
     try:
-        return amount * factors[frm] / factors[to]
+        factor = factors[frm] / factors[to]
     except KeyError as error:
         raise ValueError(f"unknown unit: {error.args[0]}") from error
+    result = amount * factor
+    if not math.isfinite(result):
+        raise ValueError("conversion result is outside the finite number range")
+    return result

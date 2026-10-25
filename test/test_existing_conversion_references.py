@@ -161,6 +161,15 @@ def test_temperature_rejects_values_below_absolute_zero():
         convert_temp.convert_kelToCel(-0.01)
 
 
+def test_fahrenheit_absolute_zero_round_trips_to_zero_kelvin():
+    kelvin = convert_temp.convert_fahToKel(-459.67)
+
+    assert kelvin == 0
+    assert convert_temp.convert_kelTofah(kelvin) == pytest.approx(-459.67)
+    with pytest.raises(ValueError, match="absolute zero"):
+        convert_temp.convert_kelTofah(-1e-15)
+
+
 def test_correct_temperature_name_keeps_legacy_alias():
     assert convert_temp.covert_celToKel(38) == pytest.approx(
         convert_temp.convert_celToKel(38)

@@ -37,10 +37,8 @@ class ConversionResult:
 
 
 _NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
-_EXPRESSION = re.compile(
-    rf"^\s*({_NUMBER})\s+(.+?)\s+(?:to|in)\s+(.+?)\s*$",
-    re.IGNORECASE,
-)
+_AMOUNT_AND_UNITS = re.compile(rf"^\s*({_NUMBER})\s+(.+?)\s*$")
+_UNIT_SEPARATOR = re.compile(r"(?=(\s+(?:to|in)\s+))", re.IGNORECASE)
 
 _LINEAR_CONVERTERS = {
     "angle": convert_angle,
@@ -59,18 +57,65 @@ _LINEAR_CONVERTERS = {
 
 
 def parse_expression(text: str) -> ParsedExpression:
-    match = _EXPRESSION.fullmatch(text if isinstance(text, str) else "")
+    match = _AMOUNT_AND_UNITS.fullmatch(text if isinstance(text, str) else "")
     if match is None:
         raise ValueError("Use '<amount> <unit> to <unit>', for example '10 km in mi'.")
 
     amount = require_finite(float(match.group(1)))
-    source = resolve_unit(match.group(2))
-    target = resolve_unit(match.group(3))
-    if source.category != target.category:
-        raise ValueError(
-            f"Both units must be from the same category; got {source.category} and {target.category}."
-        )
-    return ParsedExpression(amount, source, target)
+    units = match.group(2)
+    candidates = []
+    category_errors = []
+    unit_errors = []
+    for separator in _UNIT_SEPARATOR.finditer(units):
+        separator_start, separator_end = separator.span(1)
+        source_text = units[:separator_start].strip()
+        target_text = units[separator_end:].strip()
+        if not source_text or not target_text:
+            continue
+
+        source = target = None
+        errors = []
+        for resolver, alias, target_side in (
+            (resolve_unit, source_text, False),
+            (resolve_unit, target_text, True),
+        ):
+            try:
+                resolved = resolver(alias)
+            except ValueError as error:
+                errors.append(error)
+                if target_side:
+                    target = None
+                else:
+                    source = None
+            else:
+                if target_side:
+                    target = resolved
+                else:
+                    source = resolved
+
+        if errors:
+            unit_errors.append((int(source is not None) + int(target is not None), errors[0]))
+            continue
+        if source.category != target.category:
+            category_errors.append(
+                ValueError(
+                    "Both units must be from the same category; "
+                    f"got {source.category} and {target.category}."
+                )
+            )
+            continue
+        candidates.append((source, target))
+
+    if len(candidates) == 1:
+        source, target = candidates[0]
+        return ParsedExpression(amount, source, target)
+    if len(candidates) > 1:
+        raise ValueError("Ambiguous unit separator; use a clearer expression.")
+    if category_errors:
+        raise category_errors[0]
+    if unit_errors:
+        raise max(unit_errors, key=lambda item: item[0])[1]
+    raise ValueError("Use '<amount> <unit> to <unit>', for example '10 km in mi'.")
 
 
 def _convert_temperature(amount: float, source: str, target: str) -> float:

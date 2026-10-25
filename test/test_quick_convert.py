@@ -12,6 +12,9 @@ from src.quick_convert import convert_expression, parse_expression
         ("72 F to C", (72 - 32) * 5 / 9, "Fahrenheit", "Celsius"),
         ("1 mpg to km/L", 100 / (100 * 3.785411784 / 1.609344), "U.S. mpg", "km/L"),
         ("1 turn in deg", 360, "Turns", "Degrees"),
+        ("1 sq in to sqm", 0.00064516, "Square inches", "Square meters"),
+        ("1 sq in in sq ft", 1 / 144, "Square inches", "Square feet"),
+        ("1 sqm to sq in", 1 / 0.00064516, "Square meters", "Square inches"),
     ],
 )
 def test_quick_conversion_examples(expression, expected, source_label, target_label):

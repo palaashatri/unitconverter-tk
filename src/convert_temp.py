@@ -42,7 +42,10 @@ def convert_fahToCel(fahTemp):
 
 
 def convert_fahToKel(fahTemp):
-    return (_fahrenheit(fahTemp) - 32) * (5 / 9) + 273.15
+    fahrenheit = _fahrenheit(fahTemp)
+    if fahrenheit == -459.67:
+        return 0.0
+    return (fahrenheit - 32) * (5 / 9) + 273.15
 
 
 def convert_kelToCel(kelTemp):

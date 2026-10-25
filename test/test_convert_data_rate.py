@@ -38,6 +38,15 @@ def test_all_data_rate_unit_pairs_round_trip():
         assert convert_data_rate.convert(result, target, source) == pytest.approx(3.125)
 
 
+def test_large_finite_identity_conversion_does_not_overflow():
+    assert convert_data_rate.convert(1e308, "Tbit/s", "Tbit/s") == 1e308
+
+
+def test_unrepresentable_data_rate_conversion_raises_value_error():
+    with pytest.raises(ValueError, match="conversion result"):
+        convert_data_rate.convert(1e308, "Tbit/s", "bit/s")
+
+
 @pytest.mark.parametrize("source,target", [("unknown", "bit/s"), ("bit/s", "unknown")])
 def test_data_rate_converter_rejects_unknown_units(source, target):
     with pytest.raises(ValueError, match="unit"):

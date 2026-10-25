@@ -27,6 +27,15 @@ def test_all_angle_unit_pairs_round_trip():
         assert convert_angle.convert(result, target, source) == pytest.approx(17.25)
 
 
+def test_large_finite_identity_conversion_does_not_overflow():
+    assert convert_angle.convert(1e308, "turn", "turn") == 1e308
+
+
+def test_unrepresentable_angle_conversion_raises_value_error():
+    with pytest.raises(ValueError, match="conversion result"):
+        convert_angle.convert(1e308, "turn", "rad")
+
+
 @pytest.mark.parametrize("source,target", [("unknown", "rad"), ("rad", "unknown")])
 def test_angle_converter_rejects_unknown_units(source, target):
     with pytest.raises(ValueError, match="unit"):
