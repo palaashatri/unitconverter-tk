@@ -1,9 +1,25 @@
 # Unit Converter
 
+<img src="assets/brand/icon-128.png" alt="Unit Converter Icon" width="96" align="right" />
+
 [![Cross-Platform Release](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml)
 [![CI](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml)
 
-A native Tkinter desktop app for quick everyday unit conversions. It runs on Windows, macOS, and Linux, keeps conversion math testable outside the UI, and stores preferences locally.
+A native Tkinter desktop app for quick everyday unit conversions. It runs on Windows, macOS, and Linux, features a custom sculpted 3D brand identity, adheres to Apple Human Interface Guidelines on macOS with a functional menu bar, and keeps preferences and conversion history locally.
+
+[Brand assets and identity specification](assets/brand/README.md)
+
+## Screenshots
+
+| Main Window (macOS HIG Design) | Quick Convert & History |
+|:---:|:---:|
+| <img src="assets/screenshots/main-window.png" alt="Main Window" width="500"/> | <img src="assets/screenshots/quick-convert.png" alt="Quick Convert" width="500"/> |
+
+<p align="center">
+  <img src="assets/screenshots/about-dialog.png" alt="About Dialog with 3D Brand Logo" width="420"/>
+  <br/>
+  <em>Native macOS About modal dialog featuring the 3D sculpted directional arrow brand emblem</em>
+</p>
 
 ## Features
 

@@ -9,9 +9,9 @@ from . import utils
 HISTORY_IDLE_DELAY_MS = 500
 
 
-def build_converter_frame(parent, title, unit_labels, convert, on_status=None, state=None):
+def build_converter_frame(parent, title, unit_labels, convert, on_status=None, state=None, display_units=None):
     """Build a consistent live-conversion frame for a linear unit category."""
-    frame = ttk.Frame(parent, padding=12)
+    frame = ttk.Frame(parent, padding=16)
     frame.columnconfigure(1, weight=1)
 
     input_value = tk.StringVar(master=frame)
@@ -19,6 +19,7 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     source_unit = tk.StringVar(master=frame)
     target_unit = tk.StringVar(master=frame)
     labels = dict(unit_labels)
+    display_values = list(display_units) if display_units is not None else list(labels)
     converting = False
     pending_history_after_id = None
     pending_history_entry = None
@@ -127,31 +128,69 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
         input_field.focus_set()
         set_status("Cleared values", "info")
 
+    def swap_units(event=None):
+        s = source_unit.get()
+        t = target_unit.get()
+        if s and t:
+            source_unit.set(t)
+            target_unit.set(s)
+            set_status("Swapped units", "info")
+
+    def copy_result(event=None):
+        val = output_value.get().strip()
+        if val:
+            utils.copy_to_clipboard(frame, val)
+            set_status("✓ Copied to clipboard", "success")
+
+    frame.swap_units = swap_units
+    frame.copy_result = copy_result
+    frame.reset_tab = reset
+
     ttk.Label(frame, text=title, style="Header.TLabel").grid(
-        row=0, column=0, columnspan=3, sticky="w", pady=(0, 12)
+        row=0, column=0, columnspan=2, sticky="w", pady=(0, 16)
     )
-    ttk.Label(frame, text="Input").grid(row=1, column=0, sticky="w", pady=4)
+
+    ttk.Label(frame, text="Amount", style="TLabel").grid(
+        row=1, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     input_field = ttk.Entry(frame, textvariable=input_value)
-    input_field.grid(row=1, column=1, sticky="ew", pady=4)
+    input_field.grid(row=1, column=1, sticky="ew", pady=6)
 
-    ttk.Label(frame, text="From").grid(row=2, column=0, sticky="w", pady=4)
+    ttk.Label(frame, text="From", style="TLabel").grid(
+        row=2, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     from_combo = ttk.Combobox(
-        frame, textvariable=source_unit, state="readonly", values=list(labels)
+        frame, textvariable=source_unit, state="readonly", values=display_values
     )
-    from_combo.grid(row=2, column=1, sticky="ew", pady=4)
-    ttk.Label(frame, text="To").grid(row=3, column=0, sticky="w", pady=4)
+    from_combo.grid(row=2, column=1, sticky="ew", pady=6)
+
+    ttk.Label(frame, text="To", style="TLabel").grid(
+        row=3, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     to_combo = ttk.Combobox(
-        frame, textvariable=target_unit, state="readonly", values=list(labels)
+        frame, textvariable=target_unit, state="readonly", values=display_values
     )
-    to_combo.grid(row=3, column=1, sticky="ew", pady=4)
+    to_combo.grid(row=3, column=1, sticky="ew", pady=6)
 
-    ttk.Label(frame, text="Output").grid(row=4, column=0, sticky="w", pady=4)
+    ttk.Label(frame, text="Result", style="TLabel").grid(
+        row=4, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     output_field = ttk.Entry(frame, textvariable=output_value, state="readonly")
-    output_field.grid(row=4, column=1, sticky="ew", pady=4)
+    output_field.grid(row=4, column=1, sticky="ew", pady=6)
 
-    buttons = ttk.Frame(frame)
-    buttons.grid(row=5, column=0, columnspan=3, sticky="w", pady=(12, 0))
-    ttk.Button(buttons, text="Reset", command=reset).pack(side="left")
+    # Clean action toolbar starting directly at column 1 (aligned with inputs)
+    action_toolbar = ttk.Frame(frame)
+    action_toolbar.grid(row=5, column=1, sticky="ew", pady=(18, 0))
+
+    reset_btn = ttk.Button(action_toolbar, text="↺ Reset", command=reset)
+    reset_btn.pack(side="left")
+
+    action_right = ttk.Frame(action_toolbar)
+    action_right.pack(side="right")
+    swap_btn = ttk.Button(action_right, text="⇄ Swap Units", command=swap_units)
+    swap_btn.pack(side="left", padx=(0, 8))
+    copy_btn = ttk.Button(action_right, text="📋 Copy Result", command=copy_result)
+    copy_btn.pack(side="left")
 
     input_value.trace_add("write", auto_convert)
     source_unit.trace_add("write", auto_convert)
@@ -160,12 +199,19 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     from_combo.bind("<Return>", callback)
     to_combo.bind("<Return>", callback)
 
+    pending_history_cancelers = None
+
     def cleanup_history_timer(event):
         if event.widget is frame:
             cancel_pending_history()
             if pending_history_flushers is not None:
                 try:
                     pending_history_flushers.remove(flush_pending_history)
+                except ValueError:
+                    pass
+            if pending_history_cancelers is not None:
+                try:
+                    pending_history_cancelers.remove(cancel_pending_history)
                 except ValueError:
                     pass
 
@@ -179,5 +225,13 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
             pending_history_flushers = []
             root._pending_history_flushers = pending_history_flushers
         pending_history_flushers.append(flush_pending_history)
+
+        pending_history_cancelers = getattr(
+            root, "_pending_history_cancelers", None
+        )
+        if pending_history_cancelers is None:
+            pending_history_cancelers = []
+            root._pending_history_cancelers = pending_history_cancelers
+        pending_history_cancelers.append(cancel_pending_history)
     input_field.focus_set()
     return frame

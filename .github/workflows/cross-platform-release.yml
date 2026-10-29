@@ -139,7 +139,7 @@ jobs:
       - name: Install pinned packaging tools
         run: python -m pip install -r requirements-build.txt
       - name: Build executable
-        run: python -m PyInstaller --clean --onefile --name unitconverter app.py
+        run: python -m PyInstaller --clean --onefile --icon assets/brand/icon.ico --add-data "assets/brand;assets/brand" --name unitconverter app.py
       - name: Smoke-test frozen executable
         run: ./dist/unitconverter.exe --smoke-test
       - name: Sign and timestamp executable
@@ -254,15 +254,17 @@ jobs:
       - name: Install pinned packaging tools
         run: .venv-build/bin/python -m pip install -r requirements-build.txt
       - name: Build executable
-        run: .venv-build/bin/python -m PyInstaller --clean --onefile --name unitconverter app.py
+        run: .venv-build/bin/python -m PyInstaller --clean --onefile --icon assets/brand/icon-256.png --add-data "assets/brand:assets/brand" --name unitconverter app.py
       - name: Smoke-test frozen executable
         run: xvfb-run -a ./dist/unitconverter --smoke-test
       - name: Prepare AppDir
         run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/scalable/apps AppDir/usr/share/icons/hicolor/256x256/apps
           cp dist/unitconverter AppDir/usr/bin/unitconverter
           cp assets/unitconverter.svg AppDir/unitconverter.svg
           cp assets/unitconverter.svg AppDir/usr/share/icons/hicolor/scalable/apps/unitconverter.svg
+          cp assets/brand/icon-256.png AppDir/unitconverter.png
+          cp assets/brand/icon-256.png AppDir/usr/share/icons/hicolor/256x256/apps/unitconverter.png
           cat > AppDir/AppRun <<'EOF'
           #!/bin/sh
           exec "$APPDIR/usr/bin/unitconverter" "$@"

@@ -19,7 +19,9 @@ if ! tag_sha="$(git rev-parse --verify --quiet "refs/tags/${tag_name}^{commit}")
   exit 1
 fi
 
-if [[ "${tag_sha,,}" != "${source_sha,,}" ]]; then
+tag_sha_lower="$(printf '%s' "$tag_sha" | tr '[:upper:]' '[:lower:]')"
+source_sha_lower="$(printf '%s' "$source_sha" | tr '[:upper:]' '[:lower:]')"
+if [[ "$tag_sha_lower" != "$source_sha_lower" ]]; then
   echo "Release tag does not point to the requested source commit." >&2
   exit 1
 fi

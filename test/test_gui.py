@@ -1,5 +1,6 @@
 """GUI smoke and behavior tests for converter tabs."""
 
+import sys
 import tkinter as tk
 from tkinter import ttk
 
@@ -405,3 +406,86 @@ def test_packaged_smoke_test_mode_checks_all_tabs_and_exits(tk_root, capsys):
     result = app_module.main(["--smoke-test"])
     assert result == 0
     assert "14 converter tabs" in capsys.readouterr().out
+
+
+def test_preferences_menu_focuses_precision_spinbox(tk_root, tmp_path):
+    root, errors = tk_root
+    app = build_main_window(settings_path=tmp_path / "settings.json")
+    app.deiconify()
+    app.focus_force()
+    app.update()
+    try:
+        menubar = app.nametowidget(app.cget("menu"))
+        # On macOS, Preferences is under the apple menu
+        apple_menu = None
+        for child in menubar.winfo_children():
+            if child.winfo_name() == "apple":
+                apple_menu = child
+                break
+        if apple_menu is not None:
+            apple_menu.invoke(2)
+            app.update()
+            spin = _named_widget(app, "precision_spinbox")
+            assert app.focus_get() == spin
+        assert errors == []
+    finally:
+        app.destroy()
+
+
+def test_clear_history_discards_pending_conversion_timer(tk_root, tmp_path):
+    root, errors = tk_root
+    app = build_main_window(settings_path=tmp_path / "settings.json")
+    app.deiconify()
+    app.update()
+    try:
+        nb = _notebook(app)
+        nb.select(13)  # Cooking tab
+        app.update()
+        frame = nb.nametowidget(nb.select())
+        combos = [w for w in _walk(frame) if isinstance(w, ttk.Combobox)]
+        entries = [w for w in _walk(frame) if isinstance(w, ttk.Entry) and not isinstance(w, ttk.Combobox)]
+        combos[0].set("Cup (US)")
+        combos[1].set("Milliliter")
+        entries[0].insert(0, "2")
+        app.update()
+
+        # Immediately invoke Clear History before the 500ms debounce timer
+        clear_btn = next(
+            w for w in _walk(app)
+            if isinstance(w, ttk.Button) and w.cget("text") == "Clear History"
+        )
+        clear_btn.invoke()
+        app.update()
+
+        assert app.app_state.history == []
+        # Wait past the debounce delay and check that history remains empty
+        app.after(600, app.quit)
+        app.mainloop()
+        assert app.app_state.history == []
+        assert errors == []
+    finally:
+        app.destroy()
+
+
+def test_advertised_keyboard_shortcuts(tk_root, tmp_path):
+    root, errors = tk_root
+    app = build_main_window(settings_path=tmp_path / "settings.json")
+    app.deiconify()
+    app.focus_force()
+    app.update()
+    try:
+        # Test tab reset shortcut
+        app.event_generate("<Command-n>" if sys.platform == "darwin" else "<Control-n>")
+        app.update()
+
+        # Test copy result shortcut
+        app.event_generate("<Command-Shift-C>" if sys.platform == "darwin" else "<Control-Shift-C>")
+        app.update()
+
+        # Test clear history shortcut
+        app.event_generate("<Command-Shift-K>" if sys.platform == "darwin" else "<Control-Shift-K>")
+        app.update()
+
+        assert errors == []
+    finally:
+        app.destroy()
