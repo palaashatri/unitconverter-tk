@@ -65,6 +65,7 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
         sub_font = ("SF Pro Text", 10)
         result_font = ("SF Pro Text", 13, "bold")
         mono_font = ("SF Mono", 10)
+        tab_font = ("SF Pro Text", 9)
     elif platform.startswith("win"):
         base_font = ("Segoe UI", 10)
         title_font = ("Segoe UI", 18, "bold")
@@ -72,6 +73,7 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
         sub_font = ("Segoe UI", 9)
         result_font = ("Segoe UI", 11, "bold")
         mono_font = ("Consolas", 9)
+        tab_font = ("Segoe UI", 9)
     else:
         base_font = ("Noto Sans", 11)
         title_font = ("Noto Sans", 18, "bold")
@@ -79,6 +81,7 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
         sub_font = ("Noto Sans", 9)
         result_font = ("Noto Sans", 12, "bold")
         mono_font = ("DejaVu Sans Mono", 9)
+        tab_font = ("Noto Sans", 9)
 
     root.base_font = base_font
     root.mono_font = mono_font
@@ -93,6 +96,12 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
     style.configure("TFrame", padding=12)
     style.configure("TLabel", font=base_font)
     style.configure("TButton", padding=(10, 5), font=base_font)
+    style.configure("TNotebook.Tab", padding=[5, 2], font=tab_font)
+
+    # Seamless Category Navigation Container style
+    style.layout("Hidden.TNotebook", [("Notebook.client", {"sticky": "nswe"})])
+    style.layout("Hidden.TNotebook.Tab", [])
+    style.configure("Hidden.TNotebook", tabmargins=[0, 0, 0, 0], borderwidth=0)
 
     # Branded custom typography styles
     style.configure("Header.TLabel", font=header_font)
@@ -252,8 +261,8 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     root.app_state = state
     root.settings_path = path
     root.title("Unit Converter")
-    root.minsize(920, 600)
-    root.geometry("980x640")
+    root.minsize(1020, 660)
+    root.geometry("1120x720")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
 
@@ -262,25 +271,21 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
 
     init_style(root, state)
 
-    main_container = ttk.Frame(root)
+    is_dark = state.dark_mode
+    card_bg = brand.DARK_CARD if is_dark else brand.LIGHT_CARD
+    border_color = brand.DARK_BORDER if is_dark else brand.LIGHT_BORDER
+    fg_color = brand.DARK_TEXT if is_dark else brand.LIGHT_TEXT
+
+    main_container = ttk.Frame(root, padding=(20, 16))
     main_container.grid(row=0, column=0, sticky="nsew")
-    main_container.columnconfigure(0, weight=1)
-    main_container.rowconfigure(0, weight=1)
+    main_container.columnconfigure(0, weight=0)
+    main_container.columnconfigure(1, weight=1)
+    main_container.columnconfigure(2, weight=0)
+    main_container.rowconfigure(2, weight=1)
 
-    # Left: converter area
-    left_panel = ttk.Frame(main_container, padding=16)
-    left_panel.grid(row=0, column=0, sticky="nsew")
-    left_panel.columnconfigure(0, weight=1)
-    left_panel.rowconfigure(2, weight=1)
-
-    # Right: history & settings panel
-    right_panel = ttk.Frame(main_container, padding=16, width=270)
-    right_panel.grid(row=0, column=1, sticky="nsew")
-    right_panel.grid_propagate(False)
-
-    # Header with sculpted 3D brand logo, typography, and About button
-    header = ttk.Frame(left_panel)
-    header.grid(row=0, column=0, sticky="ew")
+    # 1. Full-width Window Header (Row 0, spans columns 0, 1, 2)
+    header = ttk.Frame(main_container)
+    header.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 14))
     header.columnconfigure(1, weight=1)
 
     brand_icon_photo = brand.get_brand_photo(32, master=root)
@@ -394,23 +399,16 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
 
     state.on_change = schedule_settings_write
 
-    # Quick convert frame
-    quick_frame = ttk.Frame(left_panel)
-    quick_frame.grid(row=1, column=0, sticky="ew", pady=(12, 0))
-    quick_frame.columnconfigure(1, weight=1)
-    ttk.Label(quick_frame, text="Type to convert:").grid(
-        row=0, column=0, sticky="w", padx=(0, 8)
-    )
+    # 2. Full-width Quick Convert Spotlight Card (Row 1, spans columns 0, 1, 2)
+    quick_card = ttk.LabelFrame(main_container, text="Natural Language Quick Convert", padding=12)
+    quick_card.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 14))
+    quick_card.columnconfigure(0, weight=1)
+
     quick_expression = tk.StringVar(master=root)
     quick_entry = ttk.Entry(
-        quick_frame, textvariable=quick_expression, name="quick_convert_entry"
+        quick_card, textvariable=quick_expression, font=root.base_font, name="quick_convert_entry"
     )
-    quick_entry.grid(row=0, column=1, sticky="ew")
-    quick_result = tk.StringVar(master=root, value="Example: 10 km in mi")
-    quick_result_label = ttk.Label(
-        quick_frame, textvariable=quick_result, name="quick_convert_result"
-    )
-    quick_result_label.grid(row=1, column=1, sticky="w", pady=(3, 0))
+    quick_entry.grid(row=0, column=0, sticky="ew")
 
     def convert_quick(event=None):
         expression = quick_expression.get().strip()
@@ -436,20 +434,76 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         return "break"
 
     ttk.Button(
-        quick_frame,
+        quick_card,
         text="Convert",
         name="quick_convert_button",
         command=convert_quick,
-    ).grid(row=0, column=2, padx=(8, 0))
+        width=10,
+    ).grid(row=0, column=1, padx=(10, 0), sticky="e")
     quick_entry.bind("<Return>", convert_quick)
-    ttk.Label(
-        quick_frame,
-        text="Examples: 10 km in mi  ·  72 F to C  ·  100 psi to bar",
-        style="Subheader.TLabel",
-    ).grid(row=2, column=1, sticky="w", pady=(2, 0))
 
-    notebook = ttk.Notebook(left_panel)
-    notebook.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
+    sub_bar = ttk.Frame(quick_card)
+    sub_bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
+
+    quick_result = tk.StringVar(master=root, value="Example: 10 km in mi")
+    quick_result_label = ttk.Label(
+        sub_bar, textvariable=quick_result, name="quick_convert_result", style="Result.TLabel"
+    )
+    quick_result_label.pack(side="left")
+
+    ttk.Label(
+        sub_bar,
+        text="Try: 10 km in mi  ·  72 F to C  ·  100 psi to bar",
+        style="Subheader.TLabel",
+    ).pack(side="right")
+
+    # 3. Category Navigation Sidebar (Row 2, Column 0)
+    category_frame = ttk.LabelFrame(main_container, text="Categories", padding=6)
+    category_frame.grid(row=2, column=0, sticky="nsew", padx=(0, 14))
+    category_frame.grid_propagate(False)
+    category_frame.configure(width=190)
+
+    category_items = [
+        "🌡️ Temperature",
+        "📏 Length",
+        "📐 Area",
+        "💾 Digital",
+        "⚖️ Weight",
+        "🧪 Volume",
+        "🏎️ Speed",
+        "⏱️ Time",
+        "🗜️ Pressure",
+        "⚡ Energy",
+        "📐 Angle",
+        "📶 Data rate",
+        "⛽ Fuel economy",
+        "🍳 Cooking",
+    ]
+
+    category_list = tk.Listbox(
+        category_frame,
+        activestyle="none",
+        selectmode="single",
+        exportselection=False,
+        font=("SF Pro Text", 11) if sys.platform == "darwin" else ("Segoe UI", 10),
+        bg=card_bg,
+        fg=fg_color,
+        selectbackground=brand.BRAND_ACCENT,
+        selectforeground="#101720",
+        highlightthickness=1,
+        highlightbackground=border_color,
+        relief="flat",
+        borderwidth=0,
+        name="category_listbox",
+    )
+    category_list.pack(fill="both", expand=True)
+
+    for item in category_items:
+        category_list.insert("end", f"  {item}")
+
+    # 4. Active Converter Workspace (Row 2, Column 1)
+    notebook = ttk.Notebook(main_container, style="Hidden.TNotebook")
+    notebook.grid(row=2, column=1, sticky="nsew")
 
     # Create all converter tabs with state reference
     converters = [
@@ -475,22 +529,38 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         notebook.tab(tab_id, "text") for tab_id in notebook.tabs()
     )
 
-    status_bar = ttk.Label(
-        left_panel, textvariable=status_var, anchor="w", name="status_bar"
-    )
-    status_bar.grid(row=3, column=0, sticky="ew", pady=(10, 0))
-    status_bar.configure(style=status_style.get())
+    def on_category_click(event=None):
+        sel = category_list.curselection()
+        if sel:
+            idx = sel[0]
+            tabs = notebook.tabs()
+            if 0 <= idx < len(tabs):
+                notebook.select(tabs[idx])
 
-    # Update status bar style when it changes
-    def update_status_bar_style(*args):
-        status_bar.configure(style=status_style.get())
-    status_style.trace_add("write", update_status_bar_style)
+    category_list.bind("<<ListboxSelect>>", on_category_click)
 
-    # Settings panel
-    settings_frame = ttk.LabelFrame(right_panel, text="Settings", padding=10)
-    settings_frame.pack(fill="x", pady=(0, 10))
+    def on_notebook_tab_changed(event=None):
+        current_tab = notebook.select()
+        if current_tab:
+            tabs = notebook.tabs()
+            if current_tab in tabs:
+                idx = tabs.index(current_tab)
+                category_list.selection_clear(0, "end")
+                category_list.selection_set(idx)
+                category_list.see(idx)
 
-    ttk.Label(settings_frame, text="Decimal Places:").pack(anchor="w")
+    notebook.bind("<<NotebookTabChanged>>", on_notebook_tab_changed)
+    category_list.selection_set(0)
+
+    # 5. Inspector Sidebar: Preferences & History (Row 2, Column 2)
+    sidebar = ttk.Frame(main_container, width=270)
+    sidebar.grid(row=2, column=2, sticky="nsew", padx=(14, 0))
+    sidebar.grid_propagate(False)
+
+    settings_frame = ttk.LabelFrame(sidebar, text="Preferences", padding=12)
+    settings_frame.pack(fill="x", pady=(0, 12))
+
+    ttk.Label(settings_frame, text="Decimal Precision:").pack(anchor="w", pady=(0, 4))
     precision_var = tk.StringVar(master=root, value=str(state.precision))
 
     def commit_precision(event=None):
@@ -520,10 +590,9 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         to=15,
         textvariable=precision_var,
         command=commit_precision,
-        width=10,
         name="precision_spinbox",
     )
-    precision_spin.pack(anchor="w", pady=(2, 8))
+    precision_spin.pack(fill="x", pady=(0, 8))
     precision_spin.bind("<Return>", commit_precision)
     precision_spin.bind("<FocusOut>", commit_precision)
 
@@ -541,12 +610,11 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         name="scientific_notation",
     ).pack(anchor="w")
 
-    # History panel
-    history_frame = ttk.LabelFrame(right_panel, text="Recent Conversions", padding=10)
+    history_frame = ttk.LabelFrame(sidebar, text="Recent Conversions", padding=12)
     history_frame.pack(fill="both", expand=True)
 
     history_top = ttk.Frame(history_frame)
-    history_top.pack(fill="x", pady=(0, 4))
+    history_top.pack(fill="x", pady=(0, 8))
 
     def clear_history_action():
         for cancel_fn in tuple(getattr(root, "_pending_history_cancelers", ())):
@@ -569,14 +637,39 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     history_mono = ("SF Mono", 9) if sys.platform == "darwin" else ("Courier", 9)
     history_text = tk.Text(
         history_frame,
-        height=14,
-        width=30,
+        height=12,
+        width=28,
         wrap="word",
         state="disabled",
         font=history_mono,
+        bg=card_bg,
+        fg=fg_color,
+        insertbackground=fg_color,
+        selectbackground=brand.BRAND_ACCENT,
+        selectforeground=brand.DARK_BG,
+        highlightthickness=1,
+        highlightbackground=border_color,
+        relief="flat",
+        padx=8,
+        pady=8,
         name="history_text",
     )
     history_text.pack(fill="both", expand=True)
+
+    # 6. Full-width Status Footer (Row 3, spans columns 0, 1, 2)
+    footer = ttk.Frame(main_container, padding=(4, 6))
+    footer.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+
+    status_bar = ttk.Label(
+        footer, textvariable=status_var, anchor="w", name="status_bar"
+    )
+    status_bar.pack(side="left")
+    status_bar.configure(style=status_style.get())
+
+    # Update status bar style when it changes
+    def update_status_bar_style(*args):
+        status_bar.configure(style=status_style.get())
+    status_style.trace_add("write", update_status_bar_style)
 
     def update_history():
         history_text.configure(state="normal")

@@ -9,9 +9,9 @@ from . import utils
 HISTORY_IDLE_DELAY_MS = 500
 
 
-def build_converter_frame(parent, title, unit_labels, convert, on_status=None, state=None):
+def build_converter_frame(parent, title, unit_labels, convert, on_status=None, state=None, display_units=None):
     """Build a consistent live-conversion frame for a linear unit category."""
-    frame = ttk.Frame(parent, padding=12)
+    frame = ttk.Frame(parent, padding=16)
     frame.columnconfigure(1, weight=1)
 
     input_value = tk.StringVar(master=frame)
@@ -19,6 +19,7 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     source_unit = tk.StringVar(master=frame)
     target_unit = tk.StringVar(master=frame)
     labels = dict(unit_labels)
+    display_values = list(display_units) if display_units is not None else list(labels)
     converting = False
     pending_history_after_id = None
     pending_history_entry = None
@@ -146,37 +147,50 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     frame.reset_tab = reset
 
     ttk.Label(frame, text=title, style="Header.TLabel").grid(
-        row=0, column=0, columnspan=3, sticky="w", pady=(0, 12)
+        row=0, column=0, columnspan=2, sticky="w", pady=(0, 16)
     )
-    ttk.Label(frame, text="Input").grid(row=1, column=0, sticky="w", pady=4)
+
+    ttk.Label(frame, text="Amount", style="TLabel").grid(
+        row=1, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     input_field = ttk.Entry(frame, textvariable=input_value)
-    input_field.grid(row=1, column=1, sticky="ew", pady=4)
+    input_field.grid(row=1, column=1, sticky="ew", pady=6)
 
-    ttk.Label(frame, text="From").grid(row=2, column=0, sticky="w", pady=4)
+    ttk.Label(frame, text="From", style="TLabel").grid(
+        row=2, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     from_combo = ttk.Combobox(
-        frame, textvariable=source_unit, state="readonly", values=list(labels)
+        frame, textvariable=source_unit, state="readonly", values=display_values
     )
-    from_combo.grid(row=2, column=1, sticky="ew", pady=4)
+    from_combo.grid(row=2, column=1, sticky="ew", pady=6)
 
-    swap_btn = ttk.Button(frame, text="⇄", width=3, command=swap_units)
-    swap_btn.grid(row=2, column=2, rowspan=2, padx=(4, 0), sticky="ns")
-
-    ttk.Label(frame, text="To").grid(row=3, column=0, sticky="w", pady=4)
+    ttk.Label(frame, text="To", style="TLabel").grid(
+        row=3, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     to_combo = ttk.Combobox(
-        frame, textvariable=target_unit, state="readonly", values=list(labels)
+        frame, textvariable=target_unit, state="readonly", values=display_values
     )
-    to_combo.grid(row=3, column=1, sticky="ew", pady=4)
+    to_combo.grid(row=3, column=1, sticky="ew", pady=6)
 
-    ttk.Label(frame, text="Output").grid(row=4, column=0, sticky="w", pady=4)
+    ttk.Label(frame, text="Result", style="TLabel").grid(
+        row=4, column=0, sticky="e", padx=(0, 12), pady=6
+    )
     output_field = ttk.Entry(frame, textvariable=output_value, state="readonly")
-    output_field.grid(row=4, column=1, sticky="ew", pady=4)
+    output_field.grid(row=4, column=1, sticky="ew", pady=6)
 
-    copy_btn = ttk.Button(frame, text="📋", width=3, command=copy_result)
-    copy_btn.grid(row=4, column=2, padx=(4, 0))
+    # Clean action toolbar starting directly at column 1 (aligned with inputs)
+    action_toolbar = ttk.Frame(frame)
+    action_toolbar.grid(row=5, column=1, sticky="ew", pady=(18, 0))
 
-    buttons = ttk.Frame(frame)
-    buttons.grid(row=5, column=0, columnspan=3, sticky="w", pady=(12, 0))
-    ttk.Button(buttons, text="Reset", command=reset).pack(side="left")
+    reset_btn = ttk.Button(action_toolbar, text="↺ Reset", command=reset)
+    reset_btn.pack(side="left")
+
+    action_right = ttk.Frame(action_toolbar)
+    action_right.pack(side="right")
+    swap_btn = ttk.Button(action_right, text="⇄ Swap Units", command=swap_units)
+    swap_btn.pack(side="left", padx=(0, 8))
+    copy_btn = ttk.Button(action_right, text="📋 Copy Result", command=copy_result)
+    copy_btn.pack(side="left")
 
     input_value.trace_add("write", auto_convert)
     source_unit.trace_add("write", auto_convert)
