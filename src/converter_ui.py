@@ -185,12 +185,19 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     from_combo.bind("<Return>", callback)
     to_combo.bind("<Return>", callback)
 
+    pending_history_cancelers = None
+
     def cleanup_history_timer(event):
         if event.widget is frame:
             cancel_pending_history()
             if pending_history_flushers is not None:
                 try:
                     pending_history_flushers.remove(flush_pending_history)
+                except ValueError:
+                    pass
+            if pending_history_cancelers is not None:
+                try:
+                    pending_history_cancelers.remove(cancel_pending_history)
                 except ValueError:
                     pass
 
@@ -204,5 +211,13 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
             pending_history_flushers = []
             root._pending_history_flushers = pending_history_flushers
         pending_history_flushers.append(flush_pending_history)
+
+        pending_history_cancelers = getattr(
+            root, "_pending_history_cancelers", None
+        )
+        if pending_history_cancelers is None:
+            pending_history_cancelers = []
+            root._pending_history_cancelers = pending_history_cancelers
+        pending_history_cancelers.append(cancel_pending_history)
     input_field.focus_set()
     return frame

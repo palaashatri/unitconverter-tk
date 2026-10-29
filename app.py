@@ -1,6 +1,7 @@
 """Main application window and launcher for the Unit Converter desktop app."""
 
 import argparse
+import os
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -112,7 +113,7 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
 
 def setup_menu_bar(root: tk.Tk, notebook: ttk.Notebook, show_about_dialog,
                    do_reset_tab, do_swap_tab, do_copy_tab_result,
-                   do_focus_quick, do_clear_history, do_close_window):
+                   do_focus_quick, do_focus_preferences, do_clear_history, do_close_window):
     """Build a functional macOS / cross-platform system menu bar."""
     is_mac = sys.platform == "darwin"
     menubar = tk.Menu(root)
@@ -124,19 +125,20 @@ def setup_menu_bar(root: tk.Tk, notebook: ttk.Notebook, show_about_dialog,
         app_menu.add_command(label="About Unit Converter", command=show_about_dialog)
         app_menu.add_separator()
         app_menu.add_command(label="Preferences...", accelerator="Cmd+,",
-                            command=lambda: root.nametowidget(".!frame.!frame2.!labelframe.!spinbox").focus_set())
+                             command=do_focus_preferences)
         app_menu.add_separator()
         app_menu.add_command(label="Hide Unit Converter", accelerator="Cmd+H",
-                            command=lambda: root.iconify())
-        app_menu.add_command(label="Hide Others", accelerator="Option+Cmd+H")
-        app_menu.add_command(label="Show All")
+                             command=lambda: root.tk.call("wm", "iconify", root._w))
+        app_menu.add_command(label="Hide Others", accelerator="Option+Cmd+H",
+                             command=brand.hide_other_applications)
+        app_menu.add_command(label="Show All", command=brand.unhide_all_applications)
         app_menu.add_separator()
         app_menu.add_command(label="Quit Unit Converter", accelerator="Cmd+Q", command=do_close_window)
 
     # 2. File Menu
     file_menu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label="File", menu=file_menu)
-    file_menu.add_command(label="New / Clear Tab", accelerator="Cmd+N" if is_mac else "Ctrl+N",
+    file_menu.add_command(label="New Conversion", accelerator="Cmd+N" if is_mac else "Ctrl+N",
                           command=do_reset_tab)
     file_menu.add_command(label="Clear Current Tab", accelerator="Cmd+K" if is_mac else "Ctrl+K",
                           command=do_reset_tab)
@@ -281,7 +283,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     header.grid(row=0, column=0, sticky="ew")
     header.columnconfigure(1, weight=1)
 
-    brand_icon_photo = brand.get_brand_photo(36, master=root) or brand.get_brand_photo(32, master=root)
+    brand_icon_photo = brand.get_brand_photo(32, master=root)
     if brand_icon_photo:
         icon_label = ttk.Label(header, image=brand_icon_photo)
         icon_label.image = brand_icon_photo
@@ -299,17 +301,9 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     def show_about():
         about_window = tk.Toplevel(root)
         about_window.title("About Unit Converter")
-        about_window.resizable(False, False)
+        about_window.resizable(True, True)
         about_window.transient(root)
         about_window.grab_set()
-
-        # Center the window
-        about_window.update_idletasks()
-        width = 440
-        height = 360
-        x = (about_window.winfo_screenwidth() // 2) - (width // 2)
-        y = (about_window.winfo_screenheight() // 2) - (height // 2)
-        about_window.geometry(f"{width}x{height}+{x}+{y}")
 
         content = ttk.Frame(about_window, padding=24)
         content.pack(fill="both", expand=True)
@@ -321,7 +315,8 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
             img_lbl.pack(pady=(0, 10))
 
         ttk.Label(content, text="Unit Converter", style="Header.TLabel").pack(pady=(0, 2))
-        ttk.Label(content, text="Version 2.1.0 · macOS Native Edition", style="Subheader.TLabel").pack(pady=(0, 10))
+        version = os.environ.get("UNITCONVERTER_VERSION", "2.0.0")
+        ttk.Label(content, text=f"Version {version}", style="Subheader.TLabel").pack(pady=(0, 10))
 
         ttk.Label(
             content,
@@ -334,8 +329,17 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         ttk.Label(content, text="© 2026 All Rights Reserved", style="Subheader.TLabel").pack(pady=(0, 14))
 
         btn_row = ttk.Frame(content)
-        btn_row.pack(fill="x")
+        btn_row.pack(fill="x", pady=(10, 0))
         ttk.Button(btn_row, text="OK", command=about_window.destroy, width=10).pack(side="right", padx=5)
+
+        # Center the window dynamically based on required content size
+        about_window.update_idletasks()
+        req_w = max(440, content.winfo_reqwidth() + 48)
+        req_h = max(440, content.winfo_reqheight() + 48)
+        about_window.minsize(420, 380)
+        x = (about_window.winfo_screenwidth() // 2) - (req_w // 2)
+        y = (about_window.winfo_screenheight() // 2) - (req_h // 2)
+        about_window.geometry(f"{req_w}x{req_h}+{x}+{y}")
 
     ttk.Button(header, text="About", command=show_about, width=8).grid(
         row=0, column=2, rowspan=2, sticky="e", padx=5
@@ -545,6 +549,11 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     history_top.pack(fill="x", pady=(0, 4))
 
     def clear_history_action():
+        for cancel_fn in tuple(getattr(root, "_pending_history_cancelers", ())):
+            try:
+                cancel_fn()
+            except Exception:
+                pass
         state.history.clear()
         persist_settings()
         update_history()
@@ -608,6 +617,13 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         if frame and hasattr(frame, "copy_result"):
             frame.copy_result()
 
+    def focus_preferences():
+        precision_spin.focus_set()
+        try:
+            precision_spin.selection_range(0, "end")
+        except Exception:
+            pass
+
     def focus_quick():
         quick_entry.focus_set()
         quick_entry.select_range(0, "end")
@@ -633,6 +649,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         do_swap_tab=swap_current_tab,
         do_copy_tab_result=copy_current_result,
         do_focus_quick=focus_quick,
+        do_focus_preferences=focus_preferences,
         do_clear_history=clear_history_action,
         do_close_window=close_window,
     )
@@ -644,7 +661,13 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     root.bind(f"<{mod_key}-q>", lambda e: close_window())
     root.bind(f"<{mod_key}-s>", lambda e: swap_current_tab())
     root.bind(f"<{mod_key}-k>", lambda e: reset_current_tab())
+    root.bind(f"<{mod_key}-n>", lambda e: reset_current_tab())
     root.bind(f"<{mod_key}-l>", lambda e: focus_quick())
+    root.bind(f"<{mod_key}-comma>", lambda e: focus_preferences())
+    root.bind(f"<{mod_key}-Shift-C>", lambda e: copy_current_result())
+    root.bind(f"<{mod_key}-Shift-c>", lambda e: copy_current_result())
+    root.bind(f"<{mod_key}-Shift-K>", lambda e: clear_history_action())
+    root.bind(f"<{mod_key}-Shift-k>", lambda e: clear_history_action())
     for i in range(10):
         root.bind(f"<{mod_key}-{i}>", lambda e, idx=i-1: notebook.select(idx if idx >= 0 else 9))
 

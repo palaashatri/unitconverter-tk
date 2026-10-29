@@ -57,9 +57,9 @@ def get_brand_photo(size: int = 64, master: Optional[tk.Widget] = None) -> Optio
 
     target_files = [
         f"icon-{size}.png",
-        f"icon-64.png",
-        f"icon-32.png",
-        f"icon-128.png",
+        "icon-64.png",
+        "icon-32.png",
+        "icon-128.png",
         "icon-source-crop.png",
     ]
 
@@ -167,6 +167,66 @@ def set_macos_dock_icon() -> bool:
 
         if img:
             msg_send(app, "setApplicationIconImage:", img)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def hide_other_applications() -> bool:
+    """Hide all other applications on macOS via Cocoa AppKit."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        import ctypes
+
+        objc = ctypes.cdll.LoadLibrary("/usr/lib/libobjc.A.dylib")
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.objc_getClass.argtypes = [ctypes.c_char_p]
+        objc.sel_registerName.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+
+        ns_app = objc.objc_getClass(b"NSApplication")
+        sel_shared = objc.sel_registerName(b"sharedApplication")
+        sel_hide = objc.sel_registerName(b"hideOtherApplications:")
+
+        func = objc.objc_msgSend
+        func.restype = ctypes.c_void_p
+        func.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+
+        app = func(ns_app, sel_shared, None)
+        if app:
+            func(app, sel_hide, None)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def unhide_all_applications() -> bool:
+    """Unhide all applications on macOS via Cocoa AppKit."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        import ctypes
+
+        objc = ctypes.cdll.LoadLibrary("/usr/lib/libobjc.A.dylib")
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.objc_getClass.argtypes = [ctypes.c_char_p]
+        objc.sel_registerName.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+
+        ns_app = objc.objc_getClass(b"NSApplication")
+        sel_shared = objc.sel_registerName(b"sharedApplication")
+        sel_unhide = objc.sel_registerName(b"unhideAllApplications:")
+
+        func = objc.objc_msgSend
+        func.restype = ctypes.c_void_p
+        func.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+
+        app = func(ns_app, sel_shared, None)
+        if app:
+            func(app, sel_unhide, None)
             return True
     except Exception:
         pass
