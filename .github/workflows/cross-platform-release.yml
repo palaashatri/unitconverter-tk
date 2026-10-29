@@ -139,7 +139,7 @@ jobs:
       - name: Install pinned packaging tools
         run: python -m pip install -r requirements-build.txt
       - name: Build executable
-        run: python -m PyInstaller --clean --onefile --name unitconverter app.py
+        run: python -m PyInstaller --clean --onefile --icon assets/brand/icon.ico --name unitconverter app.py
       - name: Smoke-test frozen executable
         run: ./dist/unitconverter.exe --smoke-test
       - name: Sign and timestamp executable
@@ -254,7 +254,7 @@ jobs:
       - name: Install pinned packaging tools
         run: .venv-build/bin/python -m pip install -r requirements-build.txt
       - name: Build executable
-        run: .venv-build/bin/python -m PyInstaller --clean --onefile --name unitconverter app.py
+        run: .venv-build/bin/python -m PyInstaller --clean --onefile --icon assets/brand/icon-256.png --name unitconverter app.py
       - name: Smoke-test frozen executable
         run: xvfb-run -a ./dist/unitconverter --smoke-test
       - name: Prepare AppDir

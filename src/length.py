@@ -141,9 +141,9 @@ def LengthConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
     from_combo.bind("<Return>", callback)
     to_combo.bind("<Return>", callback)
     
-    # Keyboard shortcuts
-    frame.bind_all("<Control-c>", lambda e: copy_result() if out_amt.get() else None)
-    frame.bind_all("<Command-c>", lambda e: copy_result() if out_amt.get() else None)
+    frame.swap_units = swap_units
+    frame.copy_result = copy_result
+    frame.reset_tab = reset
 
     in_field.focus()
     return frame

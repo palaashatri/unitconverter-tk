@@ -137,5 +137,9 @@ def WeightConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.Frame:
     from_combo.bind("<Return>", callback)
     to_combo.bind("<Return>", callback)
 
+    frame.swap_units = swap_units
+    frame.copy_result = copy_result
+    frame.reset_tab = reset
+
     in_field.focus()
     return frame

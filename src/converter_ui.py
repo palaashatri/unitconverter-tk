@@ -127,6 +127,24 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
         input_field.focus_set()
         set_status("Cleared values", "info")
 
+    def swap_units(event=None):
+        s = source_unit.get()
+        t = target_unit.get()
+        if s and t:
+            source_unit.set(t)
+            target_unit.set(s)
+            set_status("Swapped units", "info")
+
+    def copy_result(event=None):
+        val = output_value.get().strip()
+        if val:
+            utils.copy_to_clipboard(frame, val)
+            set_status("✓ Copied to clipboard", "success")
+
+    frame.swap_units = swap_units
+    frame.copy_result = copy_result
+    frame.reset_tab = reset
+
     ttk.Label(frame, text=title, style="Header.TLabel").grid(
         row=0, column=0, columnspan=3, sticky="w", pady=(0, 12)
     )
@@ -139,6 +157,10 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
         frame, textvariable=source_unit, state="readonly", values=list(labels)
     )
     from_combo.grid(row=2, column=1, sticky="ew", pady=4)
+
+    swap_btn = ttk.Button(frame, text="⇄", width=3, command=swap_units)
+    swap_btn.grid(row=2, column=2, rowspan=2, padx=(4, 0), sticky="ns")
+
     ttk.Label(frame, text="To").grid(row=3, column=0, sticky="w", pady=4)
     to_combo = ttk.Combobox(
         frame, textvariable=target_unit, state="readonly", values=list(labels)
@@ -148,6 +170,9 @@ def build_converter_frame(parent, title, unit_labels, convert, on_status=None, s
     ttk.Label(frame, text="Output").grid(row=4, column=0, sticky="w", pady=4)
     output_field = ttk.Entry(frame, textvariable=output_value, state="readonly")
     output_field.grid(row=4, column=1, sticky="ew", pady=4)
+
+    copy_btn = ttk.Button(frame, text="📋", width=3, command=copy_result)
+    copy_btn.grid(row=4, column=2, padx=(4, 0))
 
     buttons = ttk.Frame(frame)
     buttons.grid(row=5, column=0, columnspan=3, sticky="w", pady=(12, 0))

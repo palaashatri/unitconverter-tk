@@ -1,9 +1,12 @@
+"""Main application window and launcher for the Unit Converter desktop app."""
+
 import argparse
-import sys
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 import tkinter as tk
 from tkinter import ttk
+import webbrowser
 
 from src import (
     angle,
@@ -22,6 +25,7 @@ from src import (
     energy,
     quick_convert,
 )
+from src import brand
 from src import utils
 from src.app_state import AppState
 from src.persistence import (
@@ -32,31 +36,14 @@ from src.persistence import (
 
 
 def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
-    """Create a native-feeling ttk style based on the platform."""
+    """Create a polished native-feeling ttk style based on platform and brand palette."""
     style = ttk.Style(root)
-
     platform = sys.platform
-    theme_candidates = []
-    
+
     # Detect dark mode
-    try:
-        if platform == "darwin":
-            import subprocess
-            result = subprocess.run(['defaults', 'read', '-g', 'AppleInterfaceStyle'], 
-                                  capture_output=True, text=True)
-            state.dark_mode = 'Dark' in result.stdout
-        elif platform.startswith("win"):
-            import winreg
-            try:
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                    r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
-                value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-                state.dark_mode = value == 0
-            except:
-                pass
-    except:
-        pass
-    
+    state.dark_mode = brand.detect_system_dark_mode()
+
+    theme_candidates = []
     if platform == "darwin":
         theme_candidates = ["aqua", "clam"]
     elif platform.startswith("win"):
@@ -69,33 +56,191 @@ def init_style(root: tk.Tk, state: AppState) -> ttk.Style:
             style.theme_use(theme)
             break
 
+    # Typography according to Apple Human Interface Guidelines and platform norms
     if platform == "darwin":
         base_font = ("SF Pro Text", 12)
-        header_font = ("SF Pro Display", 18, "bold")
+        title_font = ("SF Pro Display", 20, "bold")
+        header_font = ("SF Pro Display", 15, "bold")
+        sub_font = ("SF Pro Text", 10)
+        result_font = ("SF Pro Text", 13, "bold")
+        mono_font = ("SF Mono", 10)
     elif platform.startswith("win"):
         base_font = ("Segoe UI", 10)
-        header_font = ("Segoe UI", 16, "bold")
+        title_font = ("Segoe UI", 18, "bold")
+        header_font = ("Segoe UI", 14, "bold")
+        sub_font = ("Segoe UI", 9)
+        result_font = ("Segoe UI", 11, "bold")
+        mono_font = ("Consolas", 9)
     else:
         base_font = ("Noto Sans", 11)
-        header_font = ("Noto Sans", 16, "bold")
-    
+        title_font = ("Noto Sans", 18, "bold")
+        header_font = ("Noto Sans", 14, "bold")
+        sub_font = ("Noto Sans", 9)
+        result_font = ("Noto Sans", 12, "bold")
+        mono_font = ("DejaVu Sans Mono", 9)
+
+    root.base_font = base_font
+    root.mono_font = mono_font
+
+    # Color palette
+    is_dark = state.dark_mode
+    bg_color = brand.DARK_BG if is_dark else brand.LIGHT_BG
+    muted_color = brand.DARK_TEXT_MUTED if is_dark else brand.LIGHT_TEXT_MUTED
+
+    root.configure(bg=bg_color)
+
     style.configure("TFrame", padding=12)
     style.configure("TLabel", font=base_font)
-    style.configure("TButton", padding=(10, 6), font=base_font)
-    style.configure("Header.TLabel", font=header_font)
-    style.configure("Subheader.TLabel", font=(base_font[0], max(base_font[1] - 1, 9)))
-    
-    # Status bar styles
-    style.configure("Success.TLabel", foreground="#2d7d2d" if not state.dark_mode else "#5cb85c")
-    style.configure("Error.TLabel", foreground="#c23030" if not state.dark_mode else "#ff6b6b")
-    style.configure("Info.TLabel", foreground="#555555" if not state.dark_mode else "#aaaaaa")
+    style.configure("TButton", padding=(10, 5), font=base_font)
 
-    # Hover cues without breaking native look
-    style.map(
-        "TButton",
-        relief=[("active", "groove")],
-    )
+    # Branded custom typography styles
+    style.configure("Header.TLabel", font=header_font)
+    style.configure("Subheader.TLabel", font=sub_font, foreground=muted_color)
+    style.configure("BrandTitle.TLabel", font=title_font, foreground=brand.BRAND_ACCENT)
+    style.configure("Result.TLabel", font=result_font, foreground=brand.BRAND_ACCENT)
+
+    # Status bar styles
+    style.configure("Success.TLabel", foreground=brand.COLOR_SUCCESS, font=base_font)
+    style.configure("Error.TLabel", foreground=brand.COLOR_ERROR, font=base_font)
+    style.configure("Info.TLabel", foreground=muted_color, font=base_font)
+
+    # Interactive accents
+    style.map("TButton", relief=[("active", "groove")])
+
     return style
+
+
+def setup_menu_bar(root: tk.Tk, notebook: ttk.Notebook, show_about_dialog,
+                   do_reset_tab, do_swap_tab, do_copy_tab_result,
+                   do_focus_quick, do_clear_history, do_close_window):
+    """Build a functional macOS / cross-platform system menu bar."""
+    is_mac = sys.platform == "darwin"
+    menubar = tk.Menu(root)
+
+    # 1. macOS Application Menu
+    if is_mac:
+        app_menu = tk.Menu(menubar, name="apple", tearoff=0)
+        menubar.add_cascade(menu=app_menu)
+        app_menu.add_command(label="About Unit Converter", command=show_about_dialog)
+        app_menu.add_separator()
+        app_menu.add_command(label="Preferences...", accelerator="Cmd+,",
+                            command=lambda: root.nametowidget(".!frame.!frame2.!labelframe.!spinbox").focus_set())
+        app_menu.add_separator()
+        app_menu.add_command(label="Hide Unit Converter", accelerator="Cmd+H",
+                            command=lambda: root.iconify())
+        app_menu.add_command(label="Hide Others", accelerator="Option+Cmd+H")
+        app_menu.add_command(label="Show All")
+        app_menu.add_separator()
+        app_menu.add_command(label="Quit Unit Converter", accelerator="Cmd+Q", command=do_close_window)
+
+    # 2. File Menu
+    file_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="File", menu=file_menu)
+    file_menu.add_command(label="New / Clear Tab", accelerator="Cmd+N" if is_mac else "Ctrl+N",
+                          command=do_reset_tab)
+    file_menu.add_command(label="Clear Current Tab", accelerator="Cmd+K" if is_mac else "Ctrl+K",
+                          command=do_reset_tab)
+    file_menu.add_separator()
+    file_menu.add_command(label="Close Window", accelerator="Cmd+W" if is_mac else "Ctrl+W",
+                          command=do_close_window)
+
+    # 3. Edit Menu
+    edit_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="Edit", menu=edit_menu)
+
+    def trigger_virtual_event(event_name):
+        focused = root.focus_get()
+        if focused:
+            try:
+                focused.event_generate(event_name)
+            except Exception:
+                pass
+
+    edit_menu.add_command(label="Undo", accelerator="Cmd+Z" if is_mac else "Ctrl+Z",
+                          command=lambda: trigger_virtual_event("<<Undo>>"))
+    edit_menu.add_command(label="Redo", accelerator="Shift+Cmd+Z" if is_mac else "Ctrl+Y",
+                          command=lambda: trigger_virtual_event("<<Redo>>"))
+    edit_menu.add_separator()
+    edit_menu.add_command(label="Cut", accelerator="Cmd+X" if is_mac else "Ctrl+X",
+                          command=lambda: trigger_virtual_event("<<Cut>>"))
+    edit_menu.add_command(label="Copy", accelerator="Cmd+C" if is_mac else "Ctrl+C",
+                          command=lambda: trigger_virtual_event("<<Copy>>"))
+    edit_menu.add_command(label="Paste", accelerator="Cmd+V" if is_mac else "Ctrl+V",
+                          command=lambda: trigger_virtual_event("<<Paste>>"))
+    edit_menu.add_command(label="Select All", accelerator="Cmd+A" if is_mac else "Ctrl+A",
+                          command=lambda: trigger_virtual_event("<<SelectAll>>"))
+    edit_menu.add_separator()
+    edit_menu.add_command(label="Swap Units", accelerator="Cmd+S" if is_mac else "Ctrl+S",
+                          command=do_swap_tab)
+    edit_menu.add_command(label="Copy Result", accelerator="Shift+Cmd+C" if is_mac else "Ctrl+Shift+C",
+                          command=do_copy_tab_result)
+
+    # 4. View Menu
+    view_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="View", menu=view_menu)
+    view_menu.add_command(label="Focus Quick Convert", accelerator="Cmd+L" if is_mac else "Ctrl+L",
+                          command=do_focus_quick)
+    view_menu.add_separator()
+
+    def select_next_tab():
+        tabs = notebook.tabs()
+        if tabs:
+            curr = notebook.index("current")
+            notebook.select((curr + 1) % len(tabs))
+
+    def select_prev_tab():
+        tabs = notebook.tabs()
+        if tabs:
+            curr = notebook.index("current")
+            notebook.select((curr - 1) % len(tabs))
+
+    view_menu.add_command(label="Next Category", accelerator="Ctrl+Tab", command=select_next_tab)
+    view_menu.add_command(label="Previous Category", accelerator="Ctrl+Shift+Tab", command=select_prev_tab)
+    view_menu.add_separator()
+
+    category_menu = tk.Menu(view_menu, tearoff=0)
+    view_menu.add_cascade(label="Categories", menu=category_menu)
+    for idx in range(14):
+        tab_name = notebook.tab(idx, "text")
+        shortcut = f"Cmd+{idx+1}" if is_mac and idx < 9 else (f"Ctrl+{idx+1}" if idx < 9 else "")
+        category_menu.add_command(label=tab_name, accelerator=shortcut,
+                                  command=lambda i=idx: notebook.select(i))
+
+    # 5. History Menu
+    history_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="History", menu=history_menu)
+    history_menu.add_command(label="Clear History", accelerator="Shift+Cmd+K" if is_mac else "Ctrl+Shift+K",
+                             command=do_clear_history)
+
+    # 6. Window Menu
+    if is_mac:
+        window_menu = tk.Menu(menubar, name="window", tearoff=0)
+        menubar.add_cascade(label="Window", menu=window_menu)
+        window_menu.add_command(label="Minimize", accelerator="Cmd+M", command=root.iconify)
+        window_menu.add_command(label="Zoom", command=lambda: root.wm_state("zoomed") if root.wm_state() != "zoomed" else root.wm_state("normal"))
+
+    # 7. Help Menu
+    help_menu = tk.Menu(menubar, name="help" if is_mac else None, tearoff=0)
+    menubar.add_cascade(label="Help", menu=help_menu)
+
+    def open_docs():
+        docs_path = Path(__file__).resolve().parent / "docs" / "unit-definitions.md"
+        if docs_path.is_file():
+            webbrowser.open(docs_path.as_uri())
+        else:
+            webbrowser.open("https://github.com/palaashatri/unitconverter-tk#readme")
+
+    def open_github():
+        webbrowser.open("https://github.com/palaashatri/unitconverter-tk")
+
+    help_menu.add_command(label="Unit Definitions & Conventions", command=open_docs)
+    help_menu.add_command(label="GitHub Repository", command=open_github)
+    if not is_mac:
+        help_menu.add_separator()
+        help_menu.add_command(label="About Unit Converter", command=show_about_dialog)
+
+    root.config(menu=menubar)
+    return menubar
 
 
 def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
@@ -106,8 +251,12 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     root.settings_path = path
     root.title("Unit Converter")
     root.minsize(920, 600)
+    root.geometry("980x640")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
+
+    # Apply cross-platform brand application icon (macOS Dock, Windows ICO, Tk iconphoto)
+    brand.apply_app_icon(root)
 
     init_style(root, state)
 
@@ -115,58 +264,86 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     main_container.grid(row=0, column=0, sticky="nsew")
     main_container.columnconfigure(0, weight=1)
     main_container.rowconfigure(0, weight=1)
-    
+
     # Left: converter area
     left_panel = ttk.Frame(main_container, padding=16)
     left_panel.grid(row=0, column=0, sticky="nsew")
     left_panel.columnconfigure(0, weight=1)
     left_panel.rowconfigure(2, weight=1)
-    
+
     # Right: history & settings panel
-    right_panel = ttk.Frame(main_container, padding=16, width=250)
+    right_panel = ttk.Frame(main_container, padding=16, width=270)
     right_panel.grid(row=0, column=1, sticky="nsew")
     right_panel.grid_propagate(False)
 
+    # Header with sculpted 3D brand logo, typography, and About button
     header = ttk.Frame(left_panel)
     header.grid(row=0, column=0, sticky="ew")
-    header.columnconfigure(0, weight=1)
-    ttk.Label(header, text="Unit Converter", style="Header.TLabel").grid(row=0, column=0, sticky="w")
-    
+    header.columnconfigure(1, weight=1)
+
+    brand_icon_photo = brand.get_brand_photo(36, master=root) or brand.get_brand_photo(32, master=root)
+    if brand_icon_photo:
+        icon_label = ttk.Label(header, image=brand_icon_photo)
+        icon_label.image = brand_icon_photo
+        icon_label.grid(row=0, column=0, rowspan=2, padx=(0, 10), sticky="w")
+
+    title_box = ttk.Frame(header)
+    title_box.grid(row=0, column=1, rowspan=2, sticky="w")
+    ttk.Label(title_box, text="Unit Converter", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(
+        title_box,
+        text="14 measurement categories · Instant conversion",
+        style="Subheader.TLabel",
+    ).pack(anchor="w")
+
     def show_about():
         about_window = tk.Toplevel(root)
         about_window.title("About Unit Converter")
         about_window.resizable(False, False)
         about_window.transient(root)
         about_window.grab_set()
-        
+
         # Center the window
         about_window.update_idletasks()
-        width = 400
-        height = 250
+        width = 440
+        height = 360
         x = (about_window.winfo_screenwidth() // 2) - (width // 2)
         y = (about_window.winfo_screenheight() // 2) - (height // 2)
-        about_window.geometry(f'{width}x{height}+{x}+{y}')
-        
-        content = ttk.Frame(about_window, padding=20)
+        about_window.geometry(f"{width}x{height}+{x}+{y}")
+
+        content = ttk.Frame(about_window, padding=24)
         content.pack(fill="both", expand=True)
-        
-        ttk.Label(content, text="Unit Converter", font=("", 18, "bold")).pack(pady=(0, 10))
-        ttk.Label(content, text="Version 2.0", font=("", 10)).pack(pady=(0, 20))
-        
-        ttk.Label(content, text="A modern, cross-platform unit conversion tool", 
-                 font=("", 10), wraplength=360).pack(pady=(0, 20))
-        
-        ttk.Label(content, text="Author: Palaash Atri", font=("", 11, "bold")).pack(pady=(0, 10))
-        
-        ttk.Label(content, text="© 2024 All Rights Reserved", font=("", 9)).pack(pady=(10, 0))
-        
-        ttk.Button(content, text="OK", command=about_window.destroy, width=10).pack(pady=(20, 0))
-    
-    ttk.Button(header, text="About", command=show_about, width=8).grid(row=0, column=1, sticky="e", padx=5)
-    
+
+        logo_128 = brand.get_brand_photo(128, master=about_window)
+        if logo_128:
+            img_lbl = ttk.Label(content, image=logo_128)
+            img_lbl.image = logo_128
+            img_lbl.pack(pady=(0, 10))
+
+        ttk.Label(content, text="Unit Converter", style="Header.TLabel").pack(pady=(0, 2))
+        ttk.Label(content, text="Version 2.1.0 · macOS Native Edition", style="Subheader.TLabel").pack(pady=(0, 10))
+
+        ttk.Label(
+            content,
+            text="A precision cross-platform conversion tool featuring 14 measurement categories, natural-language quick conversion, and local settings persistence.",
+            wraplength=380,
+            justify="center",
+        ).pack(pady=(0, 10))
+
+        ttk.Label(content, text="Designed by Palaash Atri", font=("", 10, "bold")).pack(pady=(0, 2))
+        ttk.Label(content, text="© 2026 All Rights Reserved", style="Subheader.TLabel").pack(pady=(0, 14))
+
+        btn_row = ttk.Frame(content)
+        btn_row.pack(fill="x")
+        ttk.Button(btn_row, text="OK", command=about_window.destroy, width=10).pack(side="right", padx=5)
+
+    ttk.Button(header, text="About", command=show_about, width=8).grid(
+        row=0, column=2, rowspan=2, sticky="e", padx=5
+    )
+
     status_var = tk.StringVar(master=root, value="Select a tab to start")
     status_style = tk.StringVar(master=root, value="Info.TLabel")
-    
+
     def update_status(msg: str, style: str = "info"):
         status_var.set(msg)
         if style == "success":
@@ -213,8 +390,9 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
 
     state.on_change = schedule_settings_write
 
+    # Quick convert frame
     quick_frame = ttk.Frame(left_panel)
-    quick_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+    quick_frame.grid(row=1, column=0, sticky="ew", pady=(12, 0))
     quick_frame.columnconfigure(1, weight=1)
     ttk.Label(quick_frame, text="Type to convert:").grid(
         row=0, column=0, sticky="w", padx=(0, 8)
@@ -262,7 +440,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     quick_entry.bind("<Return>", convert_quick)
     ttk.Label(
         quick_frame,
-        text="Examples: 10 km in mi  ·  72 F to C",
+        text="Examples: 10 km in mi  ·  72 F to C  ·  100 psi to bar",
         style="Subheader.TLabel",
     ).grid(row=2, column=1, sticky="w", pady=(2, 0))
 
@@ -286,7 +464,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         (fuel_economy.FuelEconomyConverter(notebook, update_status, state), "Fuel economy"),
         (cooking.CookingConverter(notebook, update_status, state), "Cooking"),
     ]
-    
+
     for frame, text in converters:
         notebook.add(frame, text=text)
     root.converter_tab_labels = tuple(
@@ -298,7 +476,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     )
     status_bar.grid(row=3, column=0, sticky="ew", pady=(10, 0))
     status_bar.configure(style=status_style.get())
-    
+
     # Update status bar style when it changes
     def update_status_bar_style(*args):
         status_bar.configure(style=status_style.get())
@@ -307,7 +485,7 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     # Settings panel
     settings_frame = ttk.LabelFrame(right_panel, text="Settings", padding=10)
     settings_frame.pack(fill="x", pady=(0, 10))
-    
+
     ttk.Label(settings_frame, text="Decimal Places:").pack(anchor="w")
     precision_var = tk.StringVar(master=root, value=str(state.precision))
 
@@ -344,8 +522,9 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     precision_spin.pack(anchor="w", pady=(2, 8))
     precision_spin.bind("<Return>", commit_precision)
     precision_spin.bind("<FocusOut>", commit_precision)
-    
+
     sci_var = tk.BooleanVar(master=root, value=state.use_scientific)
+
     def update_scientific():
         state.use_scientific = sci_var.get()
         persist_settings()
@@ -361,38 +540,77 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
     # History panel
     history_frame = ttk.LabelFrame(right_panel, text="Recent Conversions", padding=10)
     history_frame.pack(fill="both", expand=True)
-    
+
+    history_top = ttk.Frame(history_frame)
+    history_top.pack(fill="x", pady=(0, 4))
+
+    def clear_history_action():
+        state.history.clear()
+        persist_settings()
+        update_history()
+        update_status("Cleared conversion history", "info")
+
+    ttk.Button(
+        history_top,
+        text="Clear History",
+        command=clear_history_action,
+        width=12,
+    ).pack(side="right")
+
+    history_mono = ("SF Mono", 9) if sys.platform == "darwin" else ("Courier", 9)
     history_text = tk.Text(
         history_frame,
-        height=15,
+        height=14,
         width=30,
         wrap="word",
         state="disabled",
-        font=("Courier", 9),
+        font=history_mono,
         name="history_text",
     )
     history_text.pack(fill="both", expand=True)
-    
+
     def update_history():
         history_text.configure(state="normal")
         history_text.delete(1.0, "end")
         for entry in state.history:
             history_text.insert("end", entry + "\n\n")
         history_text.configure(state="disabled")
-    
+
     state.update_history_display = update_history
     update_history()
 
     if settings_warning:
         update_status(settings_warning, "error")
 
-    # Keyboard shortcuts
-    def switch_tab(index):
-        if 0 <= index < len(converters):
-            notebook.select(index)
-    
+    # Current tab helpers for menu commands
+    def get_current_frame():
+        tab_id = notebook.select()
+        if tab_id:
+            return notebook.nametowidget(tab_id)
+        return None
+
     def reset_current_tab():
-        update_status("Reset current tab", "info")
+        frame = get_current_frame()
+        if frame and hasattr(frame, "reset_tab"):
+            frame.reset_tab()
+        else:
+            update_status("Reset current tab", "info")
+
+    def swap_current_tab():
+        frame = get_current_frame()
+        if frame and hasattr(frame, "swap_units"):
+            frame.swap_units()
+        else:
+            update_status("Swap not supported on this category", "info")
+
+    def copy_current_result():
+        frame = get_current_frame()
+        if frame and hasattr(frame, "copy_result"):
+            frame.copy_result()
+
+    def focus_quick():
+        quick_entry.focus_set()
+        quick_entry.select_range(0, "end")
 
     def close_window():
         for flush_pending_history in tuple(
@@ -405,14 +623,30 @@ def build_main_window(settings_path: Path | str | None = None) -> tk.Tk:
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", close_window)
-    
+
+    # Setup native macOS / cross-platform menu bar
+    setup_menu_bar(
+        root=root,
+        notebook=notebook,
+        show_about_dialog=show_about,
+        do_reset_tab=reset_current_tab,
+        do_swap_tab=swap_current_tab,
+        do_copy_tab_result=copy_current_result,
+        do_focus_quick=focus_quick,
+        do_clear_history=clear_history_action,
+        do_close_window=close_window,
+    )
+
     # Platform-specific modifier key
     mod_key = "Command" if sys.platform == "darwin" else "Control"
-    
+
     root.bind(f"<{mod_key}-w>", lambda e: close_window())
     root.bind(f"<{mod_key}-q>", lambda e: close_window())
+    root.bind(f"<{mod_key}-s>", lambda e: swap_current_tab())
+    root.bind(f"<{mod_key}-k>", lambda e: reset_current_tab())
+    root.bind(f"<{mod_key}-l>", lambda e: focus_quick())
     for i in range(10):
-        root.bind(f"<{mod_key}-{i}>", lambda e, idx=i-1: switch_tab(idx) if idx >= 0 else switch_tab(9))
+        root.bind(f"<{mod_key}-{i}>", lambda e, idx=i-1: notebook.select(idx if idx >= 0 else 9))
 
     return root
 

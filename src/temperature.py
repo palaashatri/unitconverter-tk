@@ -174,5 +174,8 @@ def TemperatureConverter(parent: tk.Widget, on_status=None, state=None) -> ttk.F
     fah_entry.bind("<Return>", convert)
     kel_entry.bind("<Return>", convert)
 
+    frame.copy_result = copy_all
+    frame.reset_tab = reset
+
     cel_entry.focus()
     return frame
