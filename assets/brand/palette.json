@@ -1,0 +1,13 @@
+{
+  "name": "Unit Converter",
+  "category": "Everyday measurement tools",
+  "background": [
+    "#46576a",
+    "#253242"
+  ],
+  "accent": "#bac8d7",
+  "highlight": "#eef1f4",
+  "typography": "Inter, Segoe UI, Arial",
+  "style": "muted-metal / enamel / soft-depth",
+  "license": "original project artwork"
+}

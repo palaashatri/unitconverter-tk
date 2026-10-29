@@ -1,5 +1,10 @@
 # Unit Converter
 
+<img src="assets/brand/app-icon.svg" alt="Unit Converter icon" width="96" align="right" />
+
+[Icon, wordmark, and brand assets](assets/brand/README.md)
+
+
 [![Cross-Platform Release](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/cross-platform-release.yml)
 [![CI](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml/badge.svg)](https://github.com/palaashatri/unitconverter-tk/actions/workflows/ci.yml)
 
