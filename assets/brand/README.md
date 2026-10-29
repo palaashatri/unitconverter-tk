@@ -1,3 +1,3 @@
-# UNITCONVERTER visual identity
+# UnitConverter identity
 
-Original matching dark-slate vector assets for Unit conversion: full-color icon, monochrome icon, horizontal wordmark, 1200×630 social banner, and palette tokens. Source SVGs export to all required resolutions. Proposed separately for visual review; application resources and runtime unchanged.
+Original polished turquoise rounded tile featuring paired gold/blue directional conversion arrows. Includes PNG 16–1024px exports, source-size transparency, Windows ICO, macOS ICNS, horizontal graphic wordmark and social artwork. Supersedes rejected flat SVGs. Larger icons are Lanczos upscales of ~248px generated contact sheet crops, not independent 1024px renders. Review small-size readability and application packaging before merge; draft only.
